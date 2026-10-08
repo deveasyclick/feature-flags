@@ -278,7 +278,7 @@ app.use("*", logger());
 
 app.use("*", (c, next) =>
   cors({
-    origin: ["http://localhost:3000", "https://dariise.yusufadeniyi.dev/"],
+    origin: ["http://localhost:3000", "https://dariise.yusufadeniyi.dev"],
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],

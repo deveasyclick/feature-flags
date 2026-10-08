@@ -77,7 +77,7 @@ export function createAuthConfig(emailService: EmailService) {
 
     trustedOrigins: [
       "http://localhost:3000",
-      "https://dariise.yusufadeniyi.dev/",
+      "https://dariise.yusufadeniyi.dev",
     ],
 
     emailAndPassword: {
