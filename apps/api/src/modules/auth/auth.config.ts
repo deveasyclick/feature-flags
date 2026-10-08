@@ -75,7 +75,10 @@ export function createAuthConfig(emailService: EmailService) {
       usePlural: false,
     }),
 
-    trustedOrigins: env.corsOrigins,
+    trustedOrigins: [
+      "http://localhost:3000",
+      "https://dariise.yusufadeniyi.dev/",
+    ],
 
     emailAndPassword: {
       enabled: true,
