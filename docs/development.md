@@ -71,7 +71,6 @@ or invalid value and the process exits at startup.
 | `REDIS_URL`            | no       | —                       | Redis connection string; an empty value is treated as unset. See §8.1.                 |
 | `BETTER_AUTH_SECRET`   | yes      | —                       | Session signing secret; at least 32 characters.                                        |
 | `BETTER_AUTH_URL`      | no       | `http://localhost:4000` | Origin the browser reaches the API on. Must match, or cookies are issued for the wrong host. |
-| `CORS_ORIGINS`         | no       | `http://localhost:3000` | Comma-separated browser origins allowed with credentials; trimmed, empties dropped.    |
 | `GITHUB_CLIENT_ID`     | no       | —                       | GitHub OAuth client id.                                                               |
 | `GITHUB_CLIENT_SECRET` | no       | —                       | GitHub OAuth client secret.                                                           |
 | `GOOGLE_CLIENT_ID`     | no       | —                       | Google OAuth client id.                                                               |
@@ -165,9 +164,12 @@ Neither is behind session middleware: they and `/api/auth/*` form the unauthenti
 
 1. `secureHeaders()` on every route.
 2. `logger()` — Hono's request logger.
-3. CORS, built per request: `origin` returns the request origin only when it is in `env.corsOrigins`
-   (the `CORS_ORIGINS` allowlist), with `credentials: true`, allowed headers `Content-Type` and
+3. CORS, built per request: `origin` returns the request origin only when it is in the allowlist
+   literal in `app.ts`, with `credentials: true`, allowed headers `Content-Type` and
    `Authorization`, methods `GET`, `POST`, `PATCH`, `PUT`, `DELETE`, `OPTIONS`, and `maxAge` 600.
+   Entries must be bare origins. A browser's `Origin` header carries no trailing slash, and both
+   Hono and Better Auth compare it as an exact string, so an entry ending in `/` matches nothing
+   and silently fails every preflight.
 
 Logging today is Hono's request logger plus direct `console` output: `console.info` on startup, and
 `console.warn` on a repeated shutdown signal. `pino` is declared as a dependency of `apps/api`, but

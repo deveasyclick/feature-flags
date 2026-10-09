@@ -365,7 +365,6 @@ is read through the app's config module — `apps/api/src/config/index.ts` or
 | `BREVO_API_KEY`      | Yes      | —                       | Transactional email for verification and reset codes                   |
 | `EMAIL_FROM`         | Yes      | —                       | Sender address; must be verified in your Brevo account                  |
 | `BETTER_AUTH_URL`    | No       | `http://localhost:4000` | The origin the browser reaches the API on                              |
-| `CORS_ORIGINS`       | No       | `http://localhost:3000` | Comma-separated browser origins allowed to send credentials             |
 | `PORT`               | No       | `4000`                  | API listen port                                                        |
 | `NODE_ENV`           | No       | `development`           | `development`, `test` or `production`                                  |
 | `DATABASE_POOL_MAX`  | No       | `10`                    | Max connections this process opens; keep instances × this below the server's limit |

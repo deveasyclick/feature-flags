@@ -224,7 +224,7 @@ Web origin
 
 This makes the Better Auth session cookie first-party. **Today** the dashboard and the API
 are separate origins in development: the browser client sends `credentials: "include"`
-against the API's `CORS_ORIGINS` allowlist, and no Next.js rewrite is in use. A
+against the API's origin allowlist, and no Next.js rewrite is in use. A
 cross-origin configuration using credentialed CORS and explicit `trustedOrigins` remains
 the fallback.
 

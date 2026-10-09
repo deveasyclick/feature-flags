@@ -77,7 +77,6 @@ The test files use dynamic imports for this reason: `harness.test.ts` calls `loa
 | `DATABASE_URL` | the default test database above |
 | `BETTER_AUTH_SECRET` | `test-secret-that-is-at-least-32-chars-long` |
 | `BETTER_AUTH_URL` | `http://localhost:4000` |
-| `CORS_ORIGINS` | `http://localhost:3000` |
 | `BREVO_API_KEY` | `xkeysib-test-key` |
 | `EMAIL_FROM` | `no-reply@dariise.test` |
 

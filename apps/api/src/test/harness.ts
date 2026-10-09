@@ -43,7 +43,6 @@ export function loadTestEnv(): void {
   process.env.BETTER_AUTH_SECRET ??=
     "test-secret-that-is-at-least-32-chars-long";
   process.env.BETTER_AUTH_URL ??= "http://localhost:4000";
-  process.env.CORS_ORIGINS ??= "http://localhost:3000";
   process.env.BREVO_API_KEY ??= "xkeysib-test-key";
   process.env.EMAIL_FROM ??= "no-reply@dariise.test";
 }

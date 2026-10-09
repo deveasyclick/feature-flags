@@ -217,7 +217,7 @@ reach the browser.
 
 See `docs/architecture.md` §8.3 for the intended cookie and origin setup. Today the
 dashboard and the API are separate origins in development, and the client sends
-`credentials: "include"` against the API's `CORS_ORIGINS` allowlist; a reverse
+`credentials: "include"` against the API's origin allowlist; a reverse
 proxy under the web origin is still the intended production arrangement, so the
 session cookie never leaves the first-party site.
 

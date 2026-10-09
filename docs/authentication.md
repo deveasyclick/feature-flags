@@ -123,9 +123,11 @@ See `docs/architecture.md §9`.
 
 The dashboard and the API are separate origins in development: the web app reads
 `NEXT_PUBLIC_API_URL`, defaulting to `http://localhost:4000`, while the dashboard
-runs on `http://localhost:3000`. The API applies CORS against the `CORS_ORIGINS`
-allowlist with `credentials: true` and hands the same list to Better Auth as
-`trustedOrigins`. The browser client sends `credentials: "include"` against the API
+runs on `http://localhost:3000`. The API answers CORS from the origin allowlist in
+`src/app.ts` with `credentials: true`, and `src/modules/auth/auth.config.ts` hands the
+same origins to Better Auth as `trustedOrigins`; both compare the `Origin` header as an
+exact string, so an entry carries no trailing slash. The browser client sends
+`credentials: "include"` against the API
 base URL (`apps/web/lib/auth-client.ts`), so the cookie is cross-origin in
 development, and `BETTER_AUTH_URL` must match the origin the browser reaches the
 API on.
