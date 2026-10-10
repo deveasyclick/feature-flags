@@ -8,8 +8,10 @@ import {
   HashIcon,
   LoaderCircleIcon,
   RocketIcon,
+  TagIcon,
   ToggleLeftIcon,
   TypeIcon,
+  XIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -34,8 +36,10 @@ import {
 import { SdkPreview, sdkSnippet } from "@/components/app/flags/sdk-preview";
 import { Field, FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 import { ApiError, flags as flagsApi } from "@/lib/api";
 import { toWorkspaceSlug } from "@/lib/validation";
 
@@ -56,7 +60,15 @@ const flagTypes: Array<{
   { value: "json", label: "JSON", hint: "Structured value", icon: BracesIcon },
 ];
 
-type CreateFlagField = "key" | "name" | "type" | "variations";
+const suggestedTags = ["checkout", "frontend", "payments", "internal"];
+
+type CreateFlagField =
+  | "key"
+  | "name"
+  | "description"
+  | "type"
+  | "variations"
+  | "tags";
 
 type CreateFlagErrors = FieldErrors<CreateFlagField>;
 
@@ -141,6 +153,9 @@ export function CreateFlagForm({
 }) {
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
+  const [description, setDescription] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [type, setType] = useState<FlagType>("boolean");
   const [variations, setVariations] = useState<VariationDraft[]>(() =>
     seedVariations("boolean"),
@@ -252,6 +267,15 @@ export function CreateFlagForm({
     clearError("name");
   }
 
+  function addTag(raw: string) {
+    const tag = raw.trim().toLowerCase();
+    if (!tag || tags.includes(tag)) return;
+
+    setTags((previous) => [...previous, tag]);
+    setTagDraft("");
+    clearError("tags");
+  }
+
   function validationError(): CreateFlagErrors | null {
     // The text is what the reader sees, so it is what decides whether the row is
     // complete: a field holding something that is not a value yet blocks the
@@ -301,8 +325,9 @@ export function CreateFlagForm({
     return {
       key: key.trim(),
       name: name.trim(),
+      description: description.trim() || null,
       type,
-      tags: [],
+      tags,
       ...declared,
     };
   }
@@ -383,8 +408,8 @@ export function CreateFlagForm({
           Create Feature Flag
         </h1>
         <p className="text-muted-foreground mt-0.5 text-[13px]">
-          It is created switched off in {environmentName}. A description, owner
-          and tags can be added from the flag once it exists.
+          It is created switched off in {environmentName}. An owner can be
+          added from the flag once it exists.
         </p>
       </div>
 
@@ -422,6 +447,25 @@ export function CreateFlagForm({
                   ? "Used to evaluate the flag. The key cannot be changed later."
                   : "Lower case and dashes only, e.g. checkout-v2."}
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="flag-description">Description</Label>
+              <Textarea
+                id="flag-description"
+                name="description"
+                rows={3}
+                maxLength={280}
+                placeholder="What this flag controls and when it can be removed."
+                value={description}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  clearError("description");
+                }}
+              />
+              {errors.description ? (
+                <FieldError>{errors.description}</FieldError>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -497,6 +541,69 @@ export function CreateFlagForm({
             {errors.variations ? (
               <FieldError>{errors.variations}</FieldError>
             ) : null}
+          </section>
+
+          <section className="bg-card rounded-lg border p-4">
+            <h2 className="text-[13px] font-medium">Tags</h2>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="bg-muted inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px]"
+                >
+                  {tag}
+                  <button
+                    type="button"
+                    aria-label={`Remove tag ${tag}`}
+                    onClick={() => {
+                      setTags((previous) =>
+                        previous.filter((item) => item !== tag),
+                      );
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <XIcon aria-hidden="true" className="size-3" />
+                  </button>
+                </span>
+              ))}
+
+              <div className="flex items-center gap-1.5">
+                <TagIcon
+                  aria-hidden="true"
+                  className="text-muted-foreground size-3.5"
+                />
+                <Input
+                  value={tagDraft}
+                  onChange={(event) => setTagDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addTag(tagDraft);
+                    }
+                  }}
+                  aria-label="Add a tag"
+                  placeholder="Add Tag"
+                  className="h-7 w-28 text-[11px]"
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {suggestedTags
+                .filter((tag) => !tags.includes(tag))
+                .map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => addTag(tag)}
+                    className="text-muted-foreground hover:text-foreground border-border rounded-md border border-dashed px-2 py-0.5 text-[10px] transition-colors"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+            </div>
+
+            {errors.tags ? <FieldError>{errors.tags}</FieldError> : null}
           </section>
 
           {errors.form ? <FieldError>{errors.form}</FieldError> : null}
