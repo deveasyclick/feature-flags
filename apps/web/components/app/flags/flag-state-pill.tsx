@@ -24,7 +24,7 @@ export function flagState(state: {
  */
 export function FlagStatusBadge({ status }: { readonly status: FlagStatus }) {
   return status === "archived" ? (
-    <Badge variant="outline">Archived</Badge>
+    <Badge variant="destructive">Archived</Badge>
   ) : (
     <Badge variant="ok">Active</Badge>
   );
