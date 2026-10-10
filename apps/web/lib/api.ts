@@ -140,6 +140,17 @@ function isServer(): boolean {
 }
 
 /**
+ * Whether a rejected `fetch` was the caller aborting it.
+ *
+ * An abort is the caller's own doing — a superseded request, an unmounted
+ * component — so it is passed through rather than reported as a failure. The
+ * dashboard's forms test for it by name.
+ */
+function isAbort(cause: unknown): boolean {
+  return (cause as { name?: unknown } | null)?.name === "AbortError";
+}
+
+/**
  * The origin to reach the API from.
  *
  * The browser uses the public URL; the server uses the internal one, which may
@@ -246,6 +257,8 @@ export async function request<T>(
         : { next: { revalidate } }),
     });
   } catch (cause) {
+    if (isAbort(cause)) throw cause;
+
     throw new ApiError(
       `Could not reach the Dariise API at ${apiBaseUrl()}.`,
       0,
@@ -573,6 +586,25 @@ export const flags = {
       "PATCH",
       flagConfigPath(projectKey, flagKey, environmentKey),
       { ...options, body: input },
+    ),
+
+  /**
+   * The list's quick toggle: one field, no read-modify-write.
+   *
+   * Switching a flag on also rolls it out in full server-side, so the returned
+   * configuration — not the argument — is what the row should render.
+   */
+  setEnabled: (
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    enabled: boolean,
+    options?: RequestOptions,
+  ) =>
+    request<FlagEnvironmentConfig>(
+      "PATCH",
+      `${flagConfigPath(projectKey, flagKey, environmentKey)}/enabled`,
+      { ...options, body: { enabled } },
     ),
 
   rules: (

@@ -65,7 +65,10 @@ export function environmentFlagCounts(
       continue;
     }
 
-    if (state.rolloutPercentage >= 100) on += 1;
+    // 0% is a threshold that serves nobody, so an enabled flag sitting there is
+    // off; counting it as partial would report a rollout that is not happening.
+    if (state.rolloutPercentage <= 0) off += 1;
+    else if (state.rolloutPercentage >= 100) on += 1;
     else partial += 1;
   }
 
