@@ -36,7 +36,7 @@ The vocabulary is `EVALUATION_REASONS` in `packages/contracts/src/evaluation.ts`
 | `flag_disabled`      | The resolved flag's configuration has `enabled` false.                                               |
 | `targeting_rule`     | An individual target matched, or a targeting rule with no segment references matched.                 |
 | `segment`            | The matching rule references at least one segment key and every referenced segment resolved and matched. |
-| `percentage_rollout` | The flag-level rollout branch ran, that is `0 < rolloutPercentage < 100`.                             |
+| `percentage_rollout` | The flag-level rollout branch ran, that is `rolloutPercentage < 100`.                                |
 | `default_variation`  | The flag-level rollout branch did not run, so the default variation was served.                       |
 | `error`              | Never, today. The value exists in the contract vocabulary but no source file in `apps/api` produces it. |
 

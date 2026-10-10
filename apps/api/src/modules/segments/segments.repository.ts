@@ -188,6 +188,7 @@ export class SegmentsRepository {
         key: flag.key,
         environmentKey: environment.key,
         status: flag.status,
+        enabled: flagEnvironmentConfig.enabled,
         rolloutPercentage: flagEnvironmentConfig.rolloutPercentage,
         ruleRolloutPercentage: targetingRule.rolloutPercentage,
       })

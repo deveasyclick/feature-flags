@@ -75,12 +75,16 @@ export function toSegmentFlags(rows: SegmentFlagRow[]): SegmentFlag[] {
 
   for (const row of rows) {
     const id = `${row.key}::${row.environmentKey}`;
-    // A flag that is off, or at 0%, serves nobody, so it is not a rollout
-    // under way. The same boundary applies at rule level: a rule at 0% is
-    // applied to nobody, so the flag it hangs off is not rolling out.
+    // Only a flag that is serving somebody is rolling out: an archived or
+    // switched-off flag serves the off variation, and 0% is a threshold that
+    // sends every subject there. The same boundary applies at rule level — a
+    // rule at 0% is applied to nobody.
+    const serving = row.status !== "archived" && row.enabled;
     const rolloutPercentage = row.rolloutPercentage ?? 0;
-    const atFlagLevel = rolloutPercentage > 0 && rolloutPercentage < 100;
+    const atFlagLevel =
+      serving && rolloutPercentage > 0 && rolloutPercentage < 100;
     const atRuleLevel =
+      serving &&
       row.ruleRolloutPercentage !== null &&
       row.ruleRolloutPercentage > 0 &&
       row.ruleRolloutPercentage < 100;

@@ -45,6 +45,7 @@ export interface SegmentFlagRow {
   key: string;
   environmentKey: string;
   status: string;
+  enabled: boolean;
   rolloutPercentage: number | null;
   ruleRolloutPercentage: number | null;
 }

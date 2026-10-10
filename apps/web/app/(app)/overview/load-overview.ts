@@ -29,15 +29,26 @@ function stateIn(flag: FlagSummary, environmentKey: string) {
   );
 }
 
+/**
+ * Whether a flag is serving anybody in one environment.
+ *
+ * A rollout of 0% is a threshold that sends every subject to the off variation,
+ * so a flag sitting there is off even though its switch reads as on. This is the
+ * same reading the environments screen counts with, and the same one the flag
+ * list renders, so the two cannot report different totals for one environment.
+ */
+function isServing(state: {
+  enabled: boolean;
+  rolloutPercentage: number;
+}): boolean {
+  return state.enabled && state.rolloutPercentage > 0;
+}
+
 function isRollingOut(state: {
   enabled: boolean;
   rolloutPercentage: number;
 }): boolean {
-  return (
-    state.enabled &&
-    state.rolloutPercentage >= 1 &&
-    state.rolloutPercentage <= 99
-  );
+  return isServing(state) && state.rolloutPercentage <= 99;
 }
 
 export async function loadOverview(now: Date): Promise<OverviewData | null> {
@@ -62,7 +73,11 @@ export async function loadOverview(now: Date): Promise<OverviewData | null> {
   const enabledCount =
     selectedKey === null
       ? null
-      : flags.filter((flag) => stateIn(flag, selectedKey)?.enabled).length;
+      : flags.filter((flag) => {
+          const state = stateIn(flag, selectedKey);
+
+          return state ? isServing(state) : false;
+        }).length;
 
   const rolloutCount =
     selectedKey === null
@@ -120,9 +135,11 @@ export async function loadOverview(now: Date): Promise<OverviewData | null> {
     );
 
   const flagHealth: FlagHealth[] = environments.map((entry) => {
-    const enabled = flags.filter(
-      (flag) => stateIn(flag, entry.key)?.enabled,
-    ).length;
+    const enabled = flags.filter((flag) => {
+      const state = stateIn(flag, entry.key);
+
+      return state ? isServing(state) : false;
+    }).length;
 
     return {
       environment: entry.name,

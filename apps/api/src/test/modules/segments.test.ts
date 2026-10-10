@@ -216,6 +216,70 @@ describe("segments module", () => {
     expect(body.conditions).toHaveLength(2);
   });
 
+  it("does not call a flag that serves nobody a rollout", async () => {
+    const underTest = await fixture();
+
+    await app.request(`/v1/projects/${underTest.projectKey}/segments`, {
+      method: "POST",
+      headers: headers(underTest.session),
+      body: JSON.stringify({ name: "Beta", key: "beta-users", rules: RULES }),
+    });
+
+    await app.request(`/v1/projects/${underTest.projectKey}/flags`, {
+      method: "POST",
+      headers: headers(underTest.session),
+      body: JSON.stringify({
+        key: "checkout-v2",
+        name: "Checkout",
+        type: "boolean",
+      }),
+    });
+
+    await app.request(
+      `/v1/projects/${underTest.projectKey}/flags/checkout-v2/environments/staging/rules`,
+      {
+        method: "PUT",
+        headers: headers(underTest.session),
+        body: JSON.stringify({
+          rules: [
+            { variation: "on", conditions: [], segmentKeys: ["beta-users"] },
+          ],
+        }),
+      },
+    );
+
+    // Half a rollout, but the flag is switched off, so it serves nobody.
+    await app.request(
+      `/v1/projects/${underTest.projectKey}/flags/checkout-v2/environments/staging`,
+      {
+        method: "PATCH",
+        headers: headers(underTest.session),
+        body: JSON.stringify({
+          enabled: false,
+          offVariation: "off",
+          defaultVariation: "on",
+          rolloutPercentage: 50,
+          bucketBy: "userId",
+        }),
+      },
+    );
+
+    const response = await app.request(
+      `/v1/projects/${underTest.projectKey}/segments/beta-users/flags`,
+      { headers: { cookie: underTest.session.cookie } },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      {
+        key: "checkout-v2",
+        environmentKey: "staging",
+        status: "active",
+        isRollout: false,
+      },
+    ]);
+  });
+
   it("lists the flags that reference the segment", async () => {
     const underTest = await fixture();
 
