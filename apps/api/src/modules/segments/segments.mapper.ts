@@ -75,10 +75,15 @@ export function toSegmentFlags(rows: SegmentFlagRow[]): SegmentFlag[] {
 
   for (const row of rows) {
     const id = `${row.key}::${row.environmentKey}`;
-    const atFlagLevel =
-      (row.rolloutPercentage ?? 0) > 0 && (row.rolloutPercentage ?? 0) < 100;
+    // A flag that is off, or at 0%, serves nobody, so it is not a rollout
+    // under way. The same boundary applies at rule level: a rule at 0% is
+    // applied to nobody, so the flag it hangs off is not rolling out.
+    const rolloutPercentage = row.rolloutPercentage ?? 0;
+    const atFlagLevel = rolloutPercentage > 0 && rolloutPercentage < 100;
     const atRuleLevel =
-      row.ruleRolloutPercentage !== null && row.ruleRolloutPercentage < 100;
+      row.ruleRolloutPercentage !== null &&
+      row.ruleRolloutPercentage > 0 &&
+      row.ruleRolloutPercentage < 100;
 
     byFlagEnvironment.set(id, {
       key: row.key,
