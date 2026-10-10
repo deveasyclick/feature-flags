@@ -17,6 +17,10 @@ import {
   type FlagVariationValue,
 } from "@dariise/contracts";
 import { VariationValueInput } from "@/components/app/flags/variation-value-input";
+import {
+  parseVariationText,
+  variationValueError,
+} from "@/components/app/flags/variation-text";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,30 @@ function toRows(variations: FlagVariation[]): VariationRow[] {
     ...variation,
     saved: variation,
   }));
+}
+
+/**
+ * The text each value field shows, by key, for rows being edited.
+ *
+ * A value field is text while it is being typed, and a number or a JSON document
+ * passes through states that are not a value at all, so the raw text lives here
+ * rather than being reconstructed from the value on every keystroke. No entry
+ * means the saved value is what the field shows.
+ */
+/** The value a new variation starts at, as field text. */
+function variantSeedText(type: FlagType): string {
+  const seed: FlagVariationValue =
+    type === "boolean" ? false : type === "number" ? 0 : type === "json" ? {} : "";
+
+  return type === "json" ? JSON.stringify(seed) : String(seed);
+}
+
+function savedText(row: VariationRow): string {
+  return row.value === null
+    ? ""
+    : typeof row.value === "string"
+      ? row.value
+      : JSON.stringify(row.value);
 }
 
 function changed(row: VariationRow): boolean {
@@ -83,6 +111,10 @@ export function FlagVariations({
     value: type === "boolean" ? false : type === "number" ? 0 : type === "json" ? {} : "",
     description: "",
   }));
+  /** The text each row's value field shows; absent means the saved value. */
+  const [valueTexts, setValueTexts] = useState<Record<string, string>>({});
+  /** The text the add form's value field shows, seeded from the type. */
+  const [draftText, setDraftText] = useState(() => variantSeedText(type));
   const [adding, setAdding] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
@@ -90,19 +122,56 @@ export function FlagVariations({
   const controllerRef = useRef<AbortController | null>(null);
   const router = useRouter();
 
+  /** The message the add form's value field shows, if it is not a value. */
+  const draftValueError = variationValueError(type, draftText);
+
   function patchRow(key: string, patch: Partial<FlagVariation>) {
     setRows((previous) =>
       previous.map((row) => (row.key === key ? { ...row, ...patch } : row)),
     );
   }
 
+  /**
+   * Store what was typed, and the value it stands for only when it parses.
+   *
+   * The row keeps both, so the field never shows one thing while a save writes
+   * another: while the text does not parse, `addVariation`'s schema check and the
+   * API both refuse the value that parsed a keystroke ago.
+   */
+  function changeRowValueText(key: string, text: string) {
+    setValueTexts((previous) => ({ ...previous, [key]: text }));
+
+    const parsed = parseVariationText(type, text);
+
+    if (parsed.ok) patchRow(key, { value: parsed.value });
+  }
+
+  /** The same, for the row being added. */
+  function changeDraftValueText(text: string) {
+    setDraftText(text);
+
+    const parsed = parseVariationText(type, text);
+
+    if (parsed.ok) setDraft((previous) => ({ ...previous, value: parsed.value }));
+  }
+
   async function addVariation() {
     if (adding) return;
+
+    // The value is checked as the text the field holds: while it does not parse,
+    // the stored value is the one that parsed a keystroke ago, and writing that
+    // would save something the reader is no longer looking at.
+    const value = parseVariationText(type, draftText);
+
+    if (!value.ok) {
+      setError(value.message);
+      return;
+    }
 
     const parsed = createFlagVariationSchema.safeParse({
       key: draft.key.trim(),
       name: draft.name.trim(),
-      value: draft.value,
+      value: value.value,
       description: draft.description.trim() || null,
     });
 
@@ -143,6 +212,9 @@ export function FlagVariations({
         name: "",
         description: "",
       }));
+      setDraftText(
+        variantSeedText(type),
+      );
       router.refresh();
     } catch (cause) {
       if ((cause as Error)?.name === "AbortError") return;
@@ -309,8 +381,8 @@ export function FlagVariations({
                       <VariationValueInput
                         id={`variation-value-${row.key}`}
                         type={type}
-                        value={row.value}
-                        onChange={(value) => patchRow(row.key, { value })}
+                        text={valueTexts[row.key] ?? savedText(row)}
+                        onChange={(text) => changeRowValueText(row.key, text)}
                       />
                     </div>
                   </div>
@@ -432,10 +504,9 @@ export function FlagVariations({
               <VariationValueInput
                 id="new-variation-value"
                 type={type}
-                value={draft.value}
-                onChange={(value) =>
-                  setDraft((previous) => ({ ...previous, value }))
-                }
+                text={draftText}
+                error={draftValueError}
+                onChange={changeDraftValueText}
               />
             </div>
 

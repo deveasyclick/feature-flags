@@ -14,7 +14,10 @@ export interface VariationDraft {
   /** Stable across edits: a name is editable text, so it cannot identify a row. */
   readonly id: string;
   name: string;
+  /** The value, kept in step with `text` whenever the text parses. */
   value: FlagVariationValue;
+  /** Exactly what the value field shows; a number or JSON edit lives here. */
+  text: string;
 }
 
 /** What the returned value is called for each type. */
@@ -82,6 +85,7 @@ export function FlagVariationList({
   variations,
   collapsed,
   onChange,
+  onValueTextChange,
   onToggle,
   onAdd,
   onRemove,
@@ -91,6 +95,8 @@ export function FlagVariationList({
   /** Ids whose fields are folded away. */
   readonly collapsed: ReadonlySet<string>;
   readonly onChange: (id: string, patch: Partial<VariationDraft>) => void;
+  /** A keystroke in a value field, as the text the reader typed. */
+  readonly onValueTextChange: (id: string, text: string) => void;
   readonly onToggle: (id: string) => void;
   readonly onAdd: () => void;
   readonly onRemove: (id: string) => void;
@@ -202,9 +208,9 @@ export function FlagVariationList({
                       <VariationValueInput
                         id={`${variation.id}-value`}
                         type={type}
-                        value={variation.value}
-                        onChange={(value) => {
-                          onChange(variation.id, { value });
+                        text={variation.text}
+                        onChange={(text) => {
+                          onValueTextChange(variation.id, text);
                         }}
                       />
                     </>

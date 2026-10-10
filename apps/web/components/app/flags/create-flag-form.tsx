@@ -26,6 +26,11 @@ import {
   FlagVariationList,
   type VariationDraft,
 } from "@/components/app/flags/flag-variation-list";
+import {
+  parseVariationText,
+  variationText,
+  variationValueError,
+} from "@/components/app/flags/variation-text";
 import { SdkPreview, sdkSnippet } from "@/components/app/flags/sdk-preview";
 import { Field, FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
@@ -75,25 +80,42 @@ function blankValue(type: FlagType, position: number): FlagVariationValue {
   }
 }
 
+/** The text a value field shows for a starting value. */
+function blankText(type: FlagType, position: number): string {
+  return variationText(type, blankValue(type, position));
+}
+
+/** A seeded row in full: the value it starts at and the text that shows it. */
+function seedRow(
+  id: string,
+  name: string,
+  type: FlagType,
+  position: number,
+): VariationDraft {
+  const value = blankValue(type, position);
+
+  return { id, name, value, text: variationText(type, value) };
+}
+
 /** The two rows every flag starts with, labelled for the roles they hold. */
 function seedVariations(type: FlagType): VariationDraft[] {
   if (type === "boolean") {
     return [
-      { id: "on", name: "Enabled", value: true },
-      { id: "off", name: "Disabled", value: false },
+      seedRow("on", "Enabled", type, 1),
+      seedRow("off", "Disabled", type, 2),
     ];
   }
 
   if (type === "string") {
     return [
-      { id: "first", name: "Variation 1", value: blankValue(type, 1) },
-      { id: "second", name: "Variation 2", value: blankValue(type, 2) },
+      seedRow("first", "Variation 1", type, 1),
+      seedRow("second", "Variation 2", type, 2),
     ];
   }
 
   return [
-    { id: "first", name: "Enabled", value: blankValue(type, 1) },
-    { id: "second", name: "Disabled", value: blankValue(type, 2) },
+    seedRow("first", "Enabled", type, 1),
+    seedRow("second", "Disabled", type, 2),
   ];
 }
 
@@ -168,6 +190,23 @@ export function CreateFlagForm({
     clearError("variations");
   }
 
+  /**
+   * Store what was typed, and the value it stands for only when it parses.
+   *
+   * The row keeps both, so the field never shows one thing while the submitted
+   * value is another: while the text does not parse, `validationError` refuses
+   * the submit instead of sending the value that parsed a keystroke ago.
+   */
+  function changeVariationText(id: string, text: string) {
+    const draft = variations.find((entry) => entry.id === id);
+
+    if (!draft) return;
+
+    const parsed = parseVariationText(type, text);
+
+    patchVariation(id, parsed.ok ? { text, value: parsed.value } : { text });
+  }
+
   function toggleVariation(id: string) {
     setCollapsed((previous) => {
       const next = new Set(previous);
@@ -189,6 +228,7 @@ export function CreateFlagForm({
         id,
         name: "",
         value: blankValue(type, previous.length + 1),
+        text: blankText(type, previous.length + 1),
       },
     ]);
     setCollapsed((previous) => new Set(previous).add(id));
@@ -213,6 +253,17 @@ export function CreateFlagForm({
   }
 
   function validationError(): CreateFlagErrors | null {
+    // The text is what the reader sees, so it is what decides whether the row is
+    // complete: a field holding something that is not a value yet blocks the
+    // submit rather than quietly sending the last value that was one.
+    const unparsed = variations.find(
+      (draft) => !parseVariationText(type, draft.text).ok,
+    );
+
+    if (unparsed) {
+      return { variations: variationValueError(type, unparsed.text) };
+    }
+
     if (variations.some((draft) => !hasValue(draft.value))) {
       return { variations: "Every variation needs a value." };
     }
@@ -239,7 +290,9 @@ export function CreateFlagForm({
       variations: variations.map((draft, index) => ({
         key: keys[index],
         name: draft.name.trim(),
-        value: draft.value,
+        // A string flag's value is the text itself, so it is taken from there
+        // rather than from the copy `changeVariationText` parsed.
+        value: type === "string" ? draft.text : draft.value,
       })),
       defaultVariation: keys[0],
       offVariation: keys[1],
@@ -434,6 +487,7 @@ export function CreateFlagForm({
                 variations={variations}
                 collapsed={collapsed}
                 onChange={patchVariation}
+                onValueTextChange={changeVariationText}
                 onToggle={toggleVariation}
                 onAdd={addVariation}
                 onRemove={removeVariation}
