@@ -67,6 +67,7 @@ async function publishConfig(
   projectKey: string,
   flagKey: string,
   enabled: boolean,
+  rolloutPercentage = 100,
 ): Promise<void> {
   const response = await app.request(
     `/v1/projects/${projectKey}/flags/${flagKey}/environments/development`,
@@ -77,7 +78,9 @@ async function publishConfig(
         enabled,
         offVariation: "off",
         defaultVariation: "on",
-        rolloutPercentage: 0,
+        // Defaults to 100: the endpoint serves everybody, while 0 now serves
+        // nobody, so these cases would otherwise only ever see the off variation.
+        rolloutPercentage,
         bucketBy: "userId",
       }),
     },
@@ -154,6 +157,27 @@ describe("POST /v1/evaluate", () => {
       variation: "off",
       reason: "flag_not_found",
     });
+  });
+
+  it("serves nobody for a flag that is enabled at 0% rollout", async () => {
+    const session = await signUp(app);
+    await seedWorkspace(session.userId, "owner");
+    const project = await createProject(session, "Checkout Platform");
+
+    await createFlag(session, project.key, "checkout-v2");
+    await publishConfig(session, project.key, "checkout-v2", true, 0);
+
+    // 0% is a threshold, not a skipped branch: it is the off variation for
+    // everybody, and `enabled` follows the variation that was served.
+    for (const id of ["user-1", "user-2", "user-3"]) {
+      const { result } = await evaluate(session, { user: { id } });
+
+      expect(result).toMatchObject({
+        enabled: false,
+        variation: "off",
+        reason: "percentage_rollout",
+      });
+    }
   });
 
   it("uses projectKey to disambiguate two projects with the same keys", async () => {
