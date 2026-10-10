@@ -168,7 +168,7 @@ async function versionNumbers(
 }
 
 describe("flags module", () => {
-  it("creates the flag with the values the caller chose", async () => {
+  it("creates the flag with the values the caller chose, ignoring a variation description", async () => {
     const { session, projectKey, projectId } = await ownerFixture();
     await seedEnvironment(projectId, "development", "Development");
 
@@ -176,7 +176,12 @@ describe("flags module", () => {
       key: "greeting",
       name: "Greeting",
       type: "string",
-      values: { on: "hello", off: "goodbye" },
+      variations: [
+        { key: "on", value: "hello", description: "the friendly one" },
+        { key: "off", value: "goodbye" },
+      ],
+      defaultVariation: "on",
+      offVariation: "off",
     });
 
     expect(created.status).toBe(201);
@@ -196,6 +201,12 @@ describe("flags module", () => {
     expect(
       detail.variations.find((variation) => variation.key === "off")?.value,
     ).toBe("goodbye");
+    // A creation variation carries no description: the contract strips the
+    // extra key, and the variation reads back with the column's null.
+    expect(detail.variations.map((variation) => variation.description)).toEqual([
+      null,
+      null,
+    ]);
   });
 
   it("answers an environment the project does not have with 404", async () => {
@@ -232,7 +243,12 @@ describe("flags module", () => {
       key: "greeting",
       name: "Greeting",
       type: "string",
-      values: { on: true, off: "goodbye" },
+      variations: [
+        { key: "on", value: true },
+        { key: "off", value: "goodbye" },
+      ],
+      defaultVariation: "on",
+      offVariation: "off",
     });
 
     expect(created.status).toBe(400);
@@ -245,7 +261,12 @@ describe("flags module", () => {
       key: "greeting",
       name: "Greeting",
       type: "string",
-      values: { on: "hello", off: "goodbye" },
+      variations: [
+        { key: "on", value: "hello" },
+        { key: "off", value: "goodbye" },
+      ],
+      defaultVariation: "on",
+      offVariation: "off",
     });
     expect(retried.status).toBe(201);
   });
@@ -425,6 +446,124 @@ describe("flags module", () => {
 
     const write = await publishConfig(viewer, projectKey, "beta", "staging");
     expect(write.status).toBe(403);
+  });
+
+  it("switches a flag on at full rollout and off without losing the percentage", async () => {
+    const { session, projectKey, projectId } = await ownerFixture();
+    await seedEnvironment(projectId, "staging", "Staging");
+
+    await createFlag(projectKey, session, {
+      key: "beta",
+      name: "Beta",
+      type: "boolean",
+    });
+
+    const toggle = (enabled: boolean) =>
+      app.request(`${configPath(projectKey, "beta", "staging")}/enabled`, {
+        method: "PATCH",
+        headers: headers(session),
+        body: JSON.stringify({ enabled }),
+      });
+
+    // Switching on rolls out in full: 0% means "serve nobody", so landing there
+    // by default would leave the flag on in name only.
+    const on = await toggle(true);
+    expect(on.status).toBe(200);
+    await expect(on.json()).resolves.toMatchObject({
+      environmentKey: "staging",
+      enabled: true,
+      rolloutPercentage: 100,
+    });
+
+    // A deliberate partial rollout is the publish endpoint's business, not the
+    // toggle's; the switch must leave it alone.
+    const partial = await publishConfig(session, projectKey, "beta", "staging", {
+      rolloutPercentage: 40,
+    });
+    expect(partial.status).toBe(200);
+
+    const off = await toggle(false);
+    expect(off.status).toBe(200);
+    await expect(off.json()).resolves.toMatchObject({
+      enabled: false,
+      rolloutPercentage: 40,
+    });
+
+    // And switching back on resumes at 100% rather than the stored 40%.
+    const backOn = await toggle(true);
+    await expect(backOn.json()).resolves.toMatchObject({
+      enabled: true,
+      rolloutPercentage: 100,
+    });
+  });
+
+  it("refuses the toggle in a protected environment", async () => {
+    const { session, projectKey, projectId } = await ownerFixture();
+    await seedEnvironment(projectId, "staging", "Staging");
+
+    await createFlag(projectKey, session, {
+      key: "beta",
+      name: "Beta",
+      type: "boolean",
+    });
+
+    const protectedResponse = await app.request(
+      `/v1/projects/${projectKey}/environments/staging/settings`,
+      {
+        method: "PATCH",
+        headers: headers(session),
+        body: JSON.stringify({ isProtected: true }),
+      },
+    );
+    expect(protectedResponse.status).toBe(200);
+
+    const response = await app.request(
+      `${configPath(projectKey, "beta", "staging")}/enabled`,
+      {
+        method: "PATCH",
+        headers: headers(session),
+        body: JSON.stringify({ enabled: true }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "approval_required" },
+    });
+  });
+
+  it("refuses the toggle from a viewer", async () => {
+    const { session, organizationId, projectKey, projectId } =
+      await ownerFixture();
+    await seedEnvironment(projectId, "staging", "Staging");
+
+    const viewer = await signUp(app);
+    await seedProjectMember(projectId, viewer.userId, "viewer");
+    const { db } = await import("../../db/client.js");
+    const { member } = await import("../../db/schema/index.js");
+    await db.insert(member).values({
+      id: randomUUID(),
+      organizationId,
+      userId: viewer.userId,
+      role: "member",
+    });
+
+    await createFlag(projectKey, session, {
+      key: "beta",
+      name: "Beta",
+      type: "boolean",
+    });
+
+    const response = await app.request(
+      `${configPath(projectKey, "beta", "staging")}/enabled`,
+      {
+        method: "PATCH",
+        headers: headers(viewer),
+        body: JSON.stringify({ enabled: true }),
+      },
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it("refuses a duplicate flag key with 409", async () => {
@@ -1015,8 +1154,12 @@ describe("flags module", () => {
       key: "checkout-experience",
       name: "Checkout experience",
       type: "string",
-      values: { on: "new-checkout", off: "old-checkout" },
-      variationKeys: { on: "variant-a", off: "control" },
+      variations: [
+        { key: "variant-a", value: "new-checkout" },
+        { key: "control", value: "old-checkout" },
+      ],
+      defaultVariation: "variant-a",
+      offVariation: "control",
     });
 
     expect(created.status).toBe(201);
@@ -1070,27 +1213,40 @@ describe("flags module", () => {
     });
   });
 
-  it("refuses to name the starting variations for a type that is not a string", async () => {
+  it("creates a string flag with three values to experiment between", async () => {
     const { session, projectKey, projectId } = await ownerFixture();
     await seedEnvironment(projectId, "development", "Development");
 
-    const response = await createFlag(projectKey, session, {
-      key: "checkout-v2",
-      name: "Checkout v2",
-      type: "number",
-      values: { on: 1, off: 0 },
-      variationKeys: { on: "variant-a", off: "control" },
+    const created = await createFlag(projectKey, session, {
+      key: "checkout-layout",
+      name: "Checkout layout",
+      type: "string",
+      variations: [
+        { key: "control", value: "classic" },
+        { key: "compact", value: "compact" },
+        { key: "one-page", value: "one-page" },
+      ],
+      defaultVariation: "compact",
+      offVariation: "control",
     });
 
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({
-      error: {
-        message: "Only a string flag can name its two starting variations.",
-      },
+    expect(created.status).toBe(201);
+    const detail = (await created.json()) as FlagDetail;
+
+    expect(detail.variations.map((variation) => variation.key)).toEqual([
+      "control",
+      "compact",
+      "one-page",
+    ]);
+    await expect(
+      readConfig(session, projectKey, "checkout-layout", "development"),
+    ).resolves.toMatchObject({
+      defaultVariation: "compact",
+      offVariation: "control",
     });
   });
 
-  it("refuses two starting variations with the same key", async () => {
+  it("refuses a variation list when it does not say which two the environment selects", async () => {
     const { session, projectKey, projectId } = await ownerFixture();
     await seedEnvironment(projectId, "development", "Development");
 
@@ -1098,13 +1254,88 @@ describe("flags module", () => {
       key: "checkout-experience",
       name: "Checkout experience",
       type: "string",
-      values: { on: "new-checkout", off: "old-checkout" },
-      variationKeys: { on: "control", off: "control" },
+      variations: [
+        { key: "variant-a", value: "new-checkout" },
+        { key: "control", value: "old-checkout" },
+      ],
+      offVariation: "control",
     });
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
-      error: { message: "The two starting variations need different keys." },
+      error: {
+        message:
+          "variations, defaultVariation and offVariation have to be given together.",
+      },
+    });
+  });
+
+  it("refuses a selection that names no variation in the list", async () => {
+    const { session, projectKey, projectId } = await ownerFixture();
+    await seedEnvironment(projectId, "development", "Development");
+
+    const response = await createFlag(projectKey, session, {
+      key: "checkout-experience",
+      name: "Checkout experience",
+      type: "string",
+      variations: [
+        { key: "variant-a", value: "new-checkout" },
+        { key: "control", value: "old-checkout" },
+      ],
+      defaultVariation: "variant-a",
+      offVariation: "nope",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        message:
+          '"nope" is not one of the variations this flag is created with.',
+      },
+    });
+  });
+
+  it("refuses two variations sharing one key", async () => {
+    const { session, projectKey, projectId } = await ownerFixture();
+    await seedEnvironment(projectId, "development", "Development");
+
+    const response = await createFlag(projectKey, session, {
+      key: "checkout-experience",
+      name: "Checkout experience",
+      type: "string",
+      variations: [
+        { key: "control", value: "new-checkout" },
+        { key: "control", value: "old-checkout" },
+      ],
+      defaultVariation: "control",
+      offVariation: "control",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { message: "Every variation needs a different key." },
+    });
+  });
+
+  it("keeps a non-string flag to the conventional on and off pair", async () => {
+    const { session, projectKey, projectId } = await ownerFixture();
+    await seedEnvironment(projectId, "development", "Development");
+
+    const response = await createFlag(projectKey, session, {
+      key: "max-items",
+      name: "Max items",
+      type: "number",
+      variations: [
+        { key: "low", value: 1 },
+        { key: "high", value: 5 },
+      ],
+      defaultVariation: "high",
+      offVariation: "low",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { message: expect.stringContaining("variation list of its own") },
     });
   });
 });

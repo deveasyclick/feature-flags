@@ -18,6 +18,7 @@ import {
   type FlagVersion,
   type ReplaceIndividualTargetsInput,
   type ReplaceTargetingRulesInput,
+  type SetFlagEnabledInput,
   type TargetingRule,
   type TargetingRuleInput,
   type UpdateFlagConfigInput,
@@ -203,12 +204,33 @@ export class FlagsService {
 
     const environments = await this.repository.listEnvironments(project.id);
     const flagId = randomUUID();
-    const values = input.values ?? defaultVariations(input.type);
-    const keys = input.variationKeys ?? { on: "on", off: "off" };
-    const variations = [
-      { key: keys.on, name: variationLabel(keys.on), value: values.on },
-      { key: keys.off, name: variationLabel(keys.off), value: values.off },
-    ];
+    // A caller may hand over the whole variation list, or leave the conventional
+    // pair to the API. The two selections name keys in that list, so the
+    // fallback pair is what they point at when nothing was declared.
+    const fallback = defaultVariations(input.type);
+    const conventional = { defaultVariation: "on", offVariation: "off" };
+    const selections = {
+      defaultVariation: input.defaultVariation ?? conventional.defaultVariation,
+      offVariation: input.offVariation ?? conventional.offVariation,
+    };
+    const variations = input.variations
+      ? input.variations.map((variation) => ({
+          key: variation.key,
+          name: variation.name ?? variationLabel(variation.key),
+          value: variation.value,
+        }))
+      : [
+          {
+            key: conventional.defaultVariation,
+            name: variationLabel(conventional.defaultVariation),
+            value: fallback.on,
+          },
+          {
+            key: conventional.offVariation,
+            name: variationLabel(conventional.offVariation),
+            value: fallback.off,
+          },
+        ];
 
     await db.transaction(async (tx) => {
       await this.repository.insert(tx, {
@@ -229,9 +251,9 @@ export class FlagsService {
           flagId,
           environmentId: environment.id,
           // The environment's selections have to name variations that exist,
-          // which a string flag's own keys are.
-          offVariationKey: keys.off,
-          defaultVariationKey: keys.on,
+          // which the created list guarantees they do.
+          offVariationKey: selections.offVariation,
+          defaultVariationKey: selections.defaultVariation,
         });
 
         await this.repository.insertVersion(tx, {
@@ -555,6 +577,59 @@ export class FlagsService {
 
     await db.transaction(async (tx) => {
       await this.publishConfig(tx, context, scope, input, action);
+    });
+
+    return this.loadEnvironmentConfig({
+      ...scope,
+      config: await this.requireConfig(scope.flag.id, scope.environment.id),
+    });
+  }
+
+  /**
+   * Flip one flag on or off in one environment, behind the list's quick toggle.
+   *
+   * Narrower than `updateEnvironmentConfig` on purpose: a list row carries no
+   * opinion about variations or rollout, and sending the whole configuration
+   * would make the toggle a read-modify-write over fields the reader never saw.
+   * Every field the caller did not set is carried over from the stored config, so
+   * this can only move `enabled` and the rollout below.
+   *
+   * Switching on also rolls the flag out to 100%: the two are separate columns,
+   * and because 0% now means "serve nobody", switching on without saying so would
+   * leave the flag enabled and yet served to no one. Switching off leaves the
+   * percentage alone, so it is still there if the flag is switched back on.
+   */
+  async setEnvironmentEnabled(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    input: SetFlagEnabledInput,
+  ): Promise<FlagEnvironmentConfig> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "engineer",
+    );
+
+    this.assertPublishable(scope.environment);
+
+    const config: UpdateFlagConfigInput = {
+      enabled: input.enabled,
+      offVariation: scope.config.offVariationKey,
+      defaultVariation: scope.config.defaultVariationKey,
+      rolloutPercentage: input.enabled
+        ? 100
+        : scope.config.rolloutPercentage,
+      bucketBy: scope.config.bucketBy,
+    };
+
+    const action = input.enabled ? "flag.enabled" : "flag.disabled";
+
+    await db.transaction(async (tx) => {
+      await this.publishConfig(tx, context, scope, config, action);
     });
 
     return this.loadEnvironmentConfig({

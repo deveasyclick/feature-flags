@@ -5,6 +5,7 @@ import {
   paginationQuerySchema,
   replaceIndividualTargetsSchema,
   replaceTargetingRulesSchema,
+  setFlagEnabledSchema,
   updateFlagConfigSchema,
   updateFlagSchema,
   updateFlagVariationSchema,
@@ -191,6 +192,32 @@ export class FlagsController {
 
     return c.json(
       await this.service.updateEnvironmentConfig(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        this.param(c, "environmentKey"),
+        parsed.data,
+      ),
+    );
+  }
+
+  /**
+   * The list's quick toggle: one flag, one environment, one field.
+   *
+   * Separate from `updateEnvironmentConfig`, which takes the whole published
+   * configuration; this takes only the switch, so a list row can move it without
+   * first reading and re-sending everything else.
+   */
+  async setEnvironmentEnabled(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = setFlagEnabledSchema.safeParse(await this.body(c));
+
+    if (!parsed.success) {
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    }
+
+    return c.json(
+      await this.service.setEnvironmentEnabled(
         actor,
         this.param(c, "projectKey"),
         this.param(c, "flagKey"),

@@ -267,6 +267,12 @@ describe("route coverage: the flag route surface", () => {
         },
         status: 200,
       },
+      {
+        method: "PATCH",
+        path: `${config}/enabled`,
+        body: { enabled: true },
+        status: 200,
+      },
       { method: "GET", path: `${config}/rules`, status: 200 },
       {
         method: "PUT",

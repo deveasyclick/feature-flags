@@ -47,6 +47,9 @@ export function createFlagsRoutes({
 
   routes.get(configPath, (c) => controller.getEnvironmentConfig(c));
   routes.patch(configPath, (c) => controller.updateEnvironmentConfig(c));
+  routes.patch(`${configPath}/enabled`, (c) =>
+    controller.setEnvironmentEnabled(c),
+  );
 
   routes.get(`${configPath}/rules`, (c) => controller.getRules(c));
   routes.put(`${configPath}/rules`, (c) => controller.replaceRules(c));

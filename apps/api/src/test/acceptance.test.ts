@@ -399,7 +399,8 @@ describe("acceptance: configuration reaches evaluation", () => {
           enabled: true,
           offVariation: "off",
           defaultVariation: "on",
-          rolloutPercentage: 0,
+          // Fully on, so the only thing deciding this case is the segment rule.
+          rolloutPercentage: 100,
           bucketBy: "userId",
         }),
       },
