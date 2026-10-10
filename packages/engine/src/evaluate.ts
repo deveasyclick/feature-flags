@@ -185,7 +185,9 @@ export function evaluate(input: EvaluationInput): EvaluationOutcome {
 
   const percentage = config.rolloutPercentage;
 
-  if (percentage > 0 && percentage < 100) {
+  // The endpoints are thresholds like any other: 0 sends everybody to the off
+  // variation and 100 to the default one, so only 100 can skip the bucket.
+  if (percentage < 100) {
     const bucket = bucketFor(flag.key, bucketValue(subject, config.bucketBy));
 
     return serve(

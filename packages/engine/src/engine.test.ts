@@ -11,7 +11,9 @@ function input(overrides: Partial<EvaluationInput> = {}): EvaluationInput {
       enabled: true,
       offVariation: "off",
       defaultVariation: "on",
-      rolloutPercentage: 0,
+      // A flag that serves everybody unless a case narrows the rollout; 0 is
+      // itself a threshold now, so it would send everyone to the off variation.
+      rolloutPercentage: 100,
       bucketBy: "userId",
     },
     rules: [],
@@ -244,11 +246,24 @@ describe("evaluate", () => {
       enabled: expected !== "off",
     });
 
-    for (const rolloutPercentage of [0, 100]) {
-      expect(
-        evaluate(input({ config: { ...input().config, rolloutPercentage } })),
-      ).toMatchObject({ reason: "default_variation", variation: "on" });
-    }
+  });
+
+  it("treats the endpoints as thresholds rather than skipping the bucket", () => {
+    // 100% serves the default variation to everyone.
+    expect(
+      evaluate(
+        input({ config: { ...input().config, rolloutPercentage: 100 } }),
+      ),
+    ).toMatchObject({ reason: "default_variation", variation: "on" });
+
+    // 0% serves the off variation to everyone, rather than the default.
+    expect(
+      evaluate(input({ config: { ...input().config, rolloutPercentage: 0 } })),
+    ).toMatchObject({
+      reason: "percentage_rollout",
+      variation: "off",
+      enabled: false,
+    });
   });
 
   it("buckets by the configured attribute when one is given", () => {

@@ -42,7 +42,9 @@ function flag(overrides: Partial<SdkFlag> & { key: string }): SdkFlag {
     enabled: true,
     offVariation: "off",
     defaultVariation: "on",
-    rolloutPercentage: 0,
+    // Fully on unless a case narrows it: 0 is a threshold meaning "serve
+    // nobody", so it is never the right default for a case about anything else.
+    rolloutPercentage: 100,
     bucketBy: "userId",
     variations: [
       { key: "on", value: true },
@@ -248,6 +250,13 @@ addCase(
 addCase(
   "a partial rollout buckets the subject",
   config([flag({ key: "checkout-v2", rolloutPercentage: 50 })]),
+  { userId: "user-1" },
+  "checkout-v2",
+);
+
+addCase(
+  "a zero rollout serves the off variation",
+  config([flag({ key: "checkout-v2", rolloutPercentage: 0 })]),
   { userId: "user-1" },
   "checkout-v2",
 );
