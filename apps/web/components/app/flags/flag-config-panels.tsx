@@ -1,4 +1,8 @@
-import type { FlagDetail } from "@dariise/contracts";
+import type {
+  FlagDetail,
+  FlagType,
+  FlagVariationValue,
+} from "@dariise/contracts";
 import { SdkPreview, sdkSnippet } from "@/components/app/flags/sdk-preview";
 import { formatRelativeTime } from "@/lib/format";
 
@@ -39,22 +43,36 @@ export function FlagMetadata({ flag, now }: { readonly flag: FlagDetail; readonl
 
 export function FlagFallback({
   flagKey,
+  type,
+  defaultValue,
   fallback,
 }: {
   readonly flagKey: string;
-  readonly fallback: string;
+  readonly type: FlagType;
+  /** The value the flag returns in this environment when nothing targets it. */
+  readonly defaultValue: unknown;
+  /** What the caller uses when the SDK cannot answer at all. */
+  readonly fallback: unknown;
 }) {
   return (
     <section className="bg-card rounded-lg border p-4">
       <h2 className="text-[13px] font-medium">Evaluation Fallback</h2>
       <p className="text-muted-foreground mt-1 text-[11px]">
-        Used when the SDK cannot reach Dariise.
+        The value your code uses when the SDK cannot reach Dariise. It is yours
+        to choose; the snippet below seeds it from this environment&apos;s off
+        value, so a lookup that fails serves what the flag serves while it is
+        switched off.
       </p>
       <div className="mt-3">
         <SdkPreview
           title="Fallback"
           language=""
-          lines={sdkSnippet({ flagKey, fallback })}
+          lines={sdkSnippet({
+            flagKey,
+            type,
+            defaultValue: defaultValue as FlagVariationValue,
+            fallback: fallback as FlagVariationValue,
+          })}
         />
       </div>
     </section>

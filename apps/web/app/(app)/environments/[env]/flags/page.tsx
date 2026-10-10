@@ -29,8 +29,12 @@ export default async function EnvironmentFlagsPage(
   const { env } = await props.params;
   const now = new Date();
 
-  const { projectKey, environmentKey, environmentName } =
-    await requireFlagScope(env);
+  const {
+    projectKey,
+    environmentKey,
+    environmentName,
+    protectedEnvironment,
+  } = await requireFlagScope(env);
   const flags = await listEnvironmentFlags(projectKey, environmentKey);
 
   return (
@@ -53,6 +57,7 @@ export default async function EnvironmentFlagsPage(
         environmentKey={environmentKey}
         environmentName={environmentName}
         now={now.toISOString()}
+        protectedEnvironment={protectedEnvironment}
       />
     </>
   );

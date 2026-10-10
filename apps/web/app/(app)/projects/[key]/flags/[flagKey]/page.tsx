@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { FlagVariationValue } from "@dariise/contracts";
 import { ArchiveFlagAction } from "@/components/app/flags/archive-flag-dialog";
 import { FlagApprovalPanel } from "@/components/app/flags/flag-approval";
 import { FlagConfiguration } from "@/components/app/flags/flag-configuration";
@@ -70,12 +71,19 @@ export default async function FlagDetailPage(props: FlagPageProps) {
     loadFlagConfig(projectKey, flagKey, environmentKey),
   ]);
 
+  const defaultVariation = flag.variations.find(
+    (variation) => variation.key === config.defaultVariation,
+  );
+  const defaultValue: FlagVariationValue =
+    defaultVariation?.value ?? config.defaultVariation;
+
+  // The off variation is what a flag serves when it is off, archived or passed
+  // over by a rollout, so it is the value the SDK fallback is seeded from.
   const offVariation = flag.variations.find(
     (variation) => variation.key === config.offVariation,
   );
-  const fallback = offVariation
-    ? String(offVariation.value)
-    : config.offVariation;
+  const offValue: FlagVariationValue =
+    offVariation?.value ?? config.offVariation;
 
   // Re-key the interactive tabs on the flag and environment so switching
   // either never leaves the previous screen's local state in place.
@@ -210,7 +218,12 @@ export default async function FlagDetailPage(props: FlagPageProps) {
         metadata={
           <>
             <FlagMetadata flag={flag} now={now} />
-            <FlagFallback flagKey={flag.key} fallback={fallback} />
+            <FlagFallback
+              flagKey={flag.key}
+              type={flag.type}
+              defaultValue={defaultValue}
+              fallback={offValue}
+            />
           </>
         }
         dangerZone={

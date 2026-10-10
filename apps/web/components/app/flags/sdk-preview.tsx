@@ -1,5 +1,6 @@
 import { CopyIcon } from "lucide-react";
 import { cn } from "cn";
+import type { FlagType, FlagVariationValue } from "@dariise/contracts";
 
 interface SdkPreviewProps {
   /** Code lines, rendered one per row so indentation is preserved. */
@@ -45,31 +46,63 @@ export function SdkPreview({
   );
 }
 
+/** The getter that carries a flag's type. */
+const GETTERS: Record<FlagType, { method: string; type: string }> = {
+  boolean: { method: "getBoolean", type: "boolean" },
+  string: { method: "getString", type: "string" },
+  number: { method: "getNumber", type: "number" },
+  json: { method: "getJson<CheckoutConfig>", type: "CheckoutConfig" },
+};
+
+/**
+ * A variation's value as the literal a caller would write.
+ *
+ * A value is arbitrary JSON, so `null` is legal and `JSON.stringify` renders it
+ * as `"null"`; anything it cannot represent falls back to `null` rather than to a
+ * bare `undefined`, which would not be valid inside the generated call.
+ */
+export function valueLiteral(value: FlagVariationValue): string {
+  if (typeof value === "string") return JSON.stringify(value);
+
+  return JSON.stringify(value) ?? "null";
+}
+
 /**
  * Build the evaluation snippet for a flag.
  *
  * Shared by the create screen and the Configuration tab so the shape of the
- * snippet lives in exactly one place.
+ * snippet lives in exactly one place. The getter follows the flag's type,
+ * because the SDK's callers pass the default their own code needs rather than a
+ * value the flag happens to serve — a `getBoolean` fallback cannot be a string.
  */
 export function sdkSnippet(options: {
   flagKey: string;
-  fallback: string;
+  type: FlagType;
+  /** The value the flag itself returns in this environment. */
+  defaultValue: FlagVariationValue;
+  /** What the calling application uses when the SDK cannot answer at all. */
+  fallback: FlagVariationValue;
   environment?: string;
 }): string[] {
-  const { flagKey, fallback, environment } = options;
+  const { flagKey, type, defaultValue, fallback, environment } = options;
+  const getter = GETTERS[type];
 
   return [
-    'import { Dariise } from "@dariise/sdk";',
+    'import { FeatureFlags } from "@dariise/node";',
     "",
-    "const client = new Dariise({",
-    '  apiKey: process.env.DARIISE_API_KEY,',
+    "const client = new FeatureFlags({",
+    '  sdkKey: process.env.DARIISE_SDK_KEY,',
     ...(environment ? [`  environment: "${environment}",`] : []),
     "});",
     "",
-    `const enabled = await client.variation("${flagKey}", {`,
-    '  userId: "user_123",',
-    `}, "${fallback}");`,
+    "await client.initialize();",
     "",
-    `// ${flagKey} is ${fallback === "true" ? "on" : "off"} by default`,
+    `const value: ${getter.type} = client.${getter.method}(`,
+    `  "${flagKey}",`,
+    `  ${valueLiteral(fallback)},`,
+    '  { userId: "user_123" },',
+    ");",
+    "",
+    `// Configured value in this environment: ${valueLiteral(defaultValue)}`,
   ];
 }

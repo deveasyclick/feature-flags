@@ -1,92 +1,111 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  CheckIcon,
+  BracesIcon,
+  HashIcon,
   LoaderCircleIcon,
   RocketIcon,
-  TagIcon,
-  XIcon,
+  ToggleLeftIcon,
+  TypeIcon,
+  type LucideIcon,
 } from "lucide-react";
 import {
   createFlagSchema,
-  defaultVariations,
   toFieldErrors,
   type CreateFlagInput,
   type FieldErrors,
   type FlagType,
-  type FlagValuesInput,
+  type FlagVariationValue,
 } from "@dariise/contracts";
 import { cn } from "cn";
-import { CreateFlagHeader } from "@/components/app/flags/flag-headers";
-import { VariationValueInput } from "@/components/app/flags/variation-value-input";
+import {
+  deriveVariationKeys,
+  FlagVariationList,
+  type VariationDraft,
+} from "@/components/app/flags/flag-variation-list";
 import { SdkPreview, sdkSnippet } from "@/components/app/flags/sdk-preview";
 import { Field, FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
 import { ApiError, flags as flagsApi } from "@/lib/api";
 import { toWorkspaceSlug } from "@/lib/validation";
-
-const steps = ["Details", "Preview"] as const;
 
 const flagTypes: Array<{
   value: FlagType;
   label: string;
   hint: string;
+  icon: LucideIcon;
 }> = [
-  { value: "boolean", label: "Boolean", hint: "true / false" },
-  { value: "string", label: "String", hint: "Text value" },
-  { value: "number", label: "Number", hint: "Numeric value" },
-  { value: "json", label: "JSON", hint: "Structured value" },
+  {
+    value: "boolean",
+    label: "Boolean",
+    hint: "true / false",
+    icon: ToggleLeftIcon,
+  },
+  { value: "string", label: "String", hint: "Text value", icon: TypeIcon },
+  { value: "number", label: "Number", hint: "Numeric value", icon: HashIcon },
+  { value: "json", label: "JSON", hint: "Structured value", icon: BracesIcon },
 ];
 
-const bestPractices = [
-  "Use stable, descriptive keys",
-  "Add a clear description for reviewers",
-  "Avoid temporary flags in production",
-  "Plan for a cleanup date",
-] as const;
-
-const suggestedTags = ["checkout", "frontend", "payments", "internal"];
-
-type CreateFlagField =
-  | "key"
-  | "name"
-  | "description"
-  | "type"
-  | "tags"
-  | "values"
-  | "variationKeys";
+type CreateFlagField = "key" | "name" | "type" | "variations";
 
 type CreateFlagErrors = FieldErrors<CreateFlagField>;
 
 /**
- * One labelled line of the create preview.
+ * The value a fresh variation starts at, so none is ever left empty.
  *
- * The preview states each value rather than styling it into place: the name,
- * key and type read the same way as the tags and description beside them, so
- * nothing about what is about to be created has to be inferred from weight or
- * position.
+ * Position 1 is the Enabled role and gets the value that means "on" for its
+ * type, because two rows reading `0` or `{}` make switching the flag on look
+ * like it changed nothing.
  */
-function PreviewRow({
-  label,
-  children,
-}: {
-  readonly label: string;
-  readonly children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="max-w-[60%] text-right break-words">{children}</dd>
-    </div>
-  );
+function blankValue(type: FlagType, position: number): FlagVariationValue {
+  switch (type) {
+    case "boolean":
+      return false;
+    case "number":
+      return position === 1 ? 1 : 0;
+    case "json":
+      return { enabled: position === 1 };
+    case "string":
+      return `variation ${position}`;
+  }
 }
+
+/** The two rows every flag starts with, labelled for the roles they hold. */
+function seedVariations(type: FlagType): VariationDraft[] {
+  if (type === "boolean") {
+    return [
+      { id: "on", name: "Enabled", value: true },
+      { id: "off", name: "Disabled", value: false },
+    ];
+  }
+
+  if (type === "string") {
+    return [
+      { id: "first", name: "Variation 1", value: blankValue(type, 1) },
+      { id: "second", name: "Variation 2", value: blankValue(type, 2) },
+    ];
+  }
+
+  return [
+    { id: "first", name: "Enabled", value: blankValue(type, 1) },
+    { id: "second", name: "Disabled", value: blankValue(type, 2) },
+  ];
+}
+
+/** A string counts as filled in only when it is not blank; the rest carry their zero. */
+function hasValue(value: FlagVariationValue): boolean {
+  if (typeof value === "string") return value.trim() !== "";
+
+  return value !== null && value !== undefined;
+}
+
+/** Distinguishes rows a reader adds, which arrive without a name to go by. */
+let addedVariations = 0;
 
 export function CreateFlagForm({
   projectKey,
@@ -98,48 +117,92 @@ export function CreateFlagForm({
   readonly environmentKey: string;
   readonly environmentName: string;
 }) {
-  const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
-  const [description, setDescription] = useState("");
   const [type, setType] = useState<FlagType>("boolean");
-  /**
-   * What the flag serves in each environment it is created into.
-   *
-   * A non-boolean flag still has to answer when it is off, so both values are
-   * decided here rather than left as the placeholders the API would otherwise
-   * seed. Boolean flags never show these: their two values are the two booleans.
-   */
-  const [values, setValues] = useState<FlagValuesInput>(
-    () => defaultVariations("boolean"),
+  const [variations, setVariations] = useState<VariationDraft[]>(() =>
+    seedVariations("boolean"),
   );
-  /**
-   * The keys the two starting variations carry.
-   *
-   * Only a string flag may name them: `on` and `off` describe a boolean, while a
-   * string flag's keys are what an environment's selections point at. Every other
-   * type keeps the conventional pair, which the API also defaults to.
-   */
-  const [variationKeys, setVariationKeys] = useState({ on: "on", off: "off" });
-  const [tags, setTags] = useState<string[]>([]);
-  const [tagDraft, setTagDraft] = useState("");
-  const [editedKey, setEditedKey] = useState(false);
+  // Rows start folded: the summary line already states each role and its value.
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+    () => new Set(seedVariations("boolean").map((draft) => draft.id)),
+  );
   const [errors, setErrors] = useState<CreateFlagErrors>({});
   const [pending, setPending] = useState(false);
+  const [editedKey, setEditedKey] = useState(false);
   const router = useRouter();
   const controllerRef = useRef<AbortController | null>(null);
 
+  const keys = useMemo(
+    () => deriveVariationKeys(type, variations),
+    [type, variations],
+  );
+  /** The value the flag returns when it is on, for the SDK preview. */
+  const defaultDraft: VariationDraft | undefined = variations[0];
+  /** The off row, which is what the SDK fallback is seeded from. */
+  const offDraft: VariationDraft | undefined = variations[1];
+
   function clearError(field: keyof CreateFlagErrors) {
-    setErrors((previous) => ({ ...previous, form: undefined, [field]: undefined }));
+    setErrors((previous) => ({
+      ...previous,
+      form: undefined,
+      [field]: undefined,
+    }));
   }
 
   function handleTypeChange(next: FlagType) {
+    const drafts = seedVariations(next);
+
     setType(next);
-    // A pair typed for the previous type is meaningless in the next one.
-    setValues(defaultVariations(next));
-    setVariationKeys({ on: "on", off: "off" });
-    clearError("values");
-    clearError("variationKeys");
+    // Values typed for the previous type are meaningless in the next one.
+    setVariations(drafts);
+    setCollapsed(new Set(drafts.map((draft) => draft.id)));
+    clearError("type");
+    clearError("variations");
+  }
+
+  function patchVariation(id: string, patch: Partial<VariationDraft>) {
+    setVariations((previous) =>
+      previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)),
+    );
+    clearError("variations");
+  }
+
+  function toggleVariation(id: string) {
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+
+      return next;
+    });
+  }
+
+  function addVariation() {
+    addedVariations += 1;
+    const id = `added-${addedVariations}`;
+
+    setVariations((previous) => [
+      ...previous,
+      {
+        id,
+        name: "",
+        value: blankValue(type, previous.length + 1),
+      },
+    ]);
+    setCollapsed((previous) => new Set(previous).add(id));
+    clearError("variations");
+  }
+
+  function removeVariation(id: string) {
+    setVariations((previous) => previous.filter((draft) => draft.id !== id));
+    setCollapsed((previous) => {
+      const next = new Set(previous);
+      next.delete(id);
+      return next;
+    });
+    clearError("variations");
   }
 
   function handleNameChange(value: string) {
@@ -149,67 +212,68 @@ export function CreateFlagForm({
     clearError("name");
   }
 
-  function addTag(raw: string) {
-    const tag = raw.trim().toLowerCase();
-    if (!tag || tags.includes(tag)) return;
-    setTags((previous) => [...previous, tag]);
-    setTagDraft("");
+  function validationError(): CreateFlagErrors | null {
+    if (variations.some((draft) => !hasValue(draft.value))) {
+      return { variations: "Every variation needs a value." };
+    }
+
+    // `name` is optional on the wire, so leaving one blank is legal — but a
+    // blank field the reader was invited to fill is not: sending it would drop
+    // the label and let the API label the variation after its key instead.
+    if (variations.some((draft) => draft.name.trim() === "")) {
+      return { variations: "Every variation needs a name." };
+    }
+
+    return null;
   }
 
+  /**
+   * Every type ships its variations, including boolean.
+   *
+   * The pair a boolean gets is the conventional `on`/`off` the contract requires
+   * of a non-string flag, so typing over the seeded "Enabled"/"Disabled" labels
+   * persists them rather than being discarded.
+   */
   function input(): CreateFlagInput {
+    const declared = {
+      variations: variations.map((draft, index) => ({
+        key: keys[index],
+        name: draft.name.trim(),
+        value: draft.value,
+      })),
+      defaultVariation: keys[0],
+      offVariation: keys[1],
+    };
+
     return {
       key: key.trim(),
       name: name.trim(),
-      description: description.trim() || null,
       type,
-      tags,
-      ...(type === "boolean" ? {} : { values }),
-      ...(type === "string"
-        ? {
-            variationKeys: {
-              on: variationKeys.on.trim(),
-              off: variationKeys.off.trim(),
-            },
-          }
-        : {}),
+      tags: [],
+      ...declared,
     };
   }
 
   function validate(): CreateFlagErrors | null {
+    const own = validationError();
+
+    if (own) return own;
+
     const result = createFlagSchema.safeParse(input());
 
     return result.success ? null : toFieldErrors<CreateFlagField>(result.error);
-  }
-
-  function goToStep(next: number) {
-    const nextErrors = validate();
-    setErrors(nextErrors ?? {});
-
-    // Only the first step gates progress; Preview is the confirmation.
-    if (next > 0 && (nextErrors?.name || nextErrors?.key)) return;
-    setStep(next);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
 
-    /**
-     * Creation only ever happens from the last step.
-     *
-     * The Continue and Create Flag buttons sit in the same place in the tree,
-     * so without distinct keys React reuses one DOM node and rewrites its
-     * `type` from `button` to `submit` mid-click — and the browser submits the
-     * form the moment the attribute changes. The keys below stop that; this
-     * guard means even an implicit submission (Enter in a field) cannot create
-     * a flag from a step the user has not confirmed.
-     */
-    if (step !== steps.length - 1) return;
-
     const nextErrors = validate();
+
     if (nextErrors) {
       setErrors(nextErrors);
-      setStep(0);
+      // A folded row hides the field the error belongs to.
+      if (nextErrors.variations) setCollapsed(new Set());
       return;
     }
 
@@ -246,7 +310,6 @@ export function CreateFlagForm({
       if (error instanceof ApiError) {
         if (error.status === 409) {
           setErrors({ key: error.message });
-          setStep(0);
           return;
         }
 
@@ -262,84 +325,73 @@ export function CreateFlagForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <CreateFlagHeader steps={[...steps]} currentStep={step} />
+      <div className="mb-4">
+        <h1 className="text-lg font-semibold tracking-tight">
+          Create Feature Flag
+        </h1>
+        <p className="text-muted-foreground mt-0.5 text-[13px]">
+          It is created switched off in {environmentName}. A description, owner
+          and tags can be added from the flag once it exists.
+        </p>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
         <div className="space-y-4">
-          {step === 0 ? (
-            <>
-              <section className="bg-card rounded-lg border p-4">
-                <h2 className="text-[13px] font-medium">Flag details</h2>
+          <section className="bg-card space-y-4 rounded-lg border p-4">
+            <Field
+              id="flag-name"
+              label="Name"
+              name="name"
+              placeholder="New checkout experience"
+              required
+              value={name}
+              error={errors.name}
+              onChange={(event) => handleNameChange(event.target.value)}
+            />
 
-                <div className="mt-4 space-y-4">
-                  <Field
-                    id="flag-name"
-                    label="Flag name"
-                    name="name"
-                    placeholder="New checkout experience"
-                    required
-                    value={name}
-                    error={errors.name}
-                    onChange={(event) => handleNameChange(event.target.value)}
-                  />
+            <div className="space-y-2">
+              <Field
+                id="flag-key"
+                label="Key"
+                name="key"
+                required
+                value={key}
+                error={errors.key}
+                className="font-mono"
+                onChange={(event) => {
+                  setEditedKey(true);
+                  setKey(event.target.value);
+                  clearError("key");
+                }}
+              />
+              <p className="text-muted-foreground text-[11px]">
+                {key.trim()
+                  ? "Used to evaluate the flag. The key cannot be changed later."
+                  : "Lower case and dashes only, e.g. checkout-v2."}
+              </p>
+            </div>
 
-                  <div className="space-y-2">
-                    <Field
-                      id="flag-key"
-                      label="Flag key"
-                      name="key"
-                      required
-                      value={key}
-                      error={errors.key}
-                      className="font-mono"
-                      onChange={(event) => {
-                        setEditedKey(true);
-                        setKey(event.target.value);
-                        clearError("key");
-                      }}
-                    />
-                    <p className="text-muted-foreground text-[11px]">
-                      {key.trim()
-                        ? "Used to evaluate the flag. The key cannot be changed later."
-                        : "Lower case and dashes only, e.g. checkout-v2."}
-                    </p>
-                  </div>
+            <div className="space-y-2">
+              <p id="flag-type-label" className="text-[13px] font-medium">
+                Type
+              </p>
+              <RadioGroup
+                aria-labelledby="flag-type-label"
+                value={type}
+                onValueChange={(value) => handleTypeChange(value as FlagType)}
+                className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+              >
+                {flagTypes.map((option) => {
+                  const Icon = option.icon;
+                  const selected = type === option.value;
 
-                  <div className="space-y-2">
-                    <Label htmlFor="flag-description">Description</Label>
-                    <Textarea
-                      id="flag-description"
-                      name="description"
-                      rows={3}
-                      maxLength={280}
-                      placeholder="What this flag controls and when it can be removed."
-                      value={description}
-                      onChange={(event) => {
-                        setDescription(event.target.value);
-                        clearError("description");
-                      }}
-                    />
-                    {errors.description ? (
-                      <FieldError>{errors.description}</FieldError>
-                    ) : null}
-                  </div>
-                </div>
-              </section>
-
-              <section className="bg-card rounded-lg border p-4">
-                <h2 className="text-[13px] font-medium">Flag type</h2>
-                <RadioGroup
-                  value={type}
-                  onValueChange={(value) => handleTypeChange(value as FlagType)}
-                  className="mt-3 grid gap-2 sm:grid-cols-2"
-                >
-                  {flagTypes.map((option) => (
+                  return (
                     <Label
                       key={option.value}
                       htmlFor={`flag-type-${option.value}`}
                       className={cn(
-                        "flex cursor-pointer items-start gap-2.5 rounded-lg border p-3 font-normal transition-colors",
-                        type === option.value
+                        "flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border p-2.5 text-center font-normal transition-colors",
+                        selected
                           ? "border-primary bg-primary/5"
                           : "hover:bg-muted/50",
                       )}
@@ -347,229 +399,51 @@ export function CreateFlagForm({
                       <RadioGroupItem
                         id={`flag-type-${option.value}`}
                         value={option.value}
-                        className="mt-0.5"
+                        className="sr-only"
                       />
-                      <span>
-                        <span className="block text-[12px] font-medium">
-                          {option.label}
-                        </span>
-                        <span className="text-muted-foreground block text-[11px]">
-                          {option.hint}
-                        </span>
+                      <Icon
+                        aria-hidden="true"
+                        className={cn(
+                          "size-4",
+                          selected ? "text-primary" : "text-muted-foreground",
+                        )}
+                      />
+                      <span className="text-[12px] font-medium">
+                        {option.label}
+                      </span>
+                      <span className="text-muted-foreground text-[10px]">
+                        {option.hint}
                       </span>
                     </Label>
-                  ))}
-                </RadioGroup>
-              </section>
+                  );
+                })}
+              </RadioGroup>
+            </div>
+          </section>
 
-              {type === "boolean" ? null : (
-                <section className="bg-card rounded-lg border p-4">
-                  <h2 className="text-[13px] font-medium">Values</h2>
-                  <p className="text-muted-foreground mt-1 text-[11px]">
-                    A {type} flag still has to serve something while it is off,
-                    so both values are set now. The flag starts with them, and
-                    each can be changed on its configuration tab.
-                    {type === "string"
-                      ? " Name the two keys as well when on and off say nothing about the values they carry."
-                      : ""}
-                  </p>
+          <section className="bg-card rounded-lg border p-4">
+            <h2 className="text-[13px] font-medium">Variations</h2>
+            <p className="text-muted-foreground mt-1 text-[11px] leading-4">
+              What the flag returns. Each variation&apos;s key is derived from
+              its name, and that key is what a targeting rule points at.
+            </p>
 
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="flag-value-on">Serving value</Label>
-                      <VariationValueInput
-                        id="flag-value-on"
-                        type={type}
-                        value={values.on}
-                        onChange={(value) => {
-                          setValues((previous) => ({ ...previous, on: value }));
-                          clearError("values");
-                        }}
-                      />
-                      {type === "string" ? (
-                        <>
-                          <Label htmlFor="flag-key-on" className="block pt-1">
-                            Serving key
-                          </Label>
-                          <Input
-                            id="flag-key-on"
-                            value={variationKeys.on}
-                            onChange={(event) => {
-                              setVariationKeys((previous) => ({
-                                ...previous,
-                                on: event.target.value,
-                              }));
-                              clearError("variationKeys");
-                            }}
-                            className="font-mono text-[12px]"
-                          />
-                        </>
-                      ) : null}
-                    </div>
+            <div className="mt-4">
+              <FlagVariationList
+                type={type}
+                variations={variations}
+                collapsed={collapsed}
+                onChange={patchVariation}
+                onToggle={toggleVariation}
+                onAdd={addVariation}
+                onRemove={removeVariation}
+              />
+            </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="flag-value-off">Off value</Label>
-                      <VariationValueInput
-                        id="flag-value-off"
-                        type={type}
-                        value={values.off}
-                        onChange={(value) => {
-                          setValues((previous) => ({ ...previous, off: value }));
-                          clearError("values");
-                        }}
-                      />
-                      {type === "string" ? (
-                        <>
-                          <Label htmlFor="flag-key-off" className="block pt-1">
-                            Off key
-                          </Label>
-                          <Input
-                            id="flag-key-off"
-                            value={variationKeys.off}
-                            onChange={(event) => {
-                              setVariationKeys((previous) => ({
-                                ...previous,
-                                off: event.target.value,
-                              }));
-                              clearError("variationKeys");
-                            }}
-                            className="font-mono text-[12px]"
-                          />
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {errors.values ? (
-                    <FieldError>{errors.values}</FieldError>
-                  ) : null}
-                  {errors.variationKeys ? (
-                    <FieldError>{errors.variationKeys}</FieldError>
-                  ) : null}
-                </section>
-              )}
-
-              <section className="bg-card rounded-lg border p-4">
-                <h2 className="text-[13px] font-medium">Tags</h2>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="bg-muted inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px]"
-                    >
-                      {tag}
-                      <button
-                        type="button"
-                        aria-label={`Remove tag ${tag}`}
-                        onClick={() =>
-                          setTags((previous) =>
-                            previous.filter((item) => item !== tag),
-                          )
-                        }
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <XIcon aria-hidden="true" className="size-3" />
-                      </button>
-                    </span>
-                  ))}
-
-                  <div className="flex items-center gap-1.5">
-                    <TagIcon
-                      aria-hidden="true"
-                      className="text-muted-foreground size-3.5"
-                    />
-                    <Input
-                      value={tagDraft}
-                      onChange={(event) => setTagDraft(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          addTag(tagDraft);
-                        }
-                      }}
-                      aria-label="Add a tag"
-                      placeholder="Add Tag"
-                      className="h-7 w-28 text-[11px]"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {suggestedTags
-                    .filter((tag) => !tags.includes(tag))
-                    .map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => addTag(tag)}
-                        className="text-muted-foreground hover:text-foreground border-border rounded-md border border-dashed px-2 py-0.5 text-[10px] transition-colors"
-                      >
-                        + {tag}
-                      </button>
-                    ))}
-                </div>
-
-                {errors.tags ? <FieldError>{errors.tags}</FieldError> : null}
-              </section>
-            </>
-          ) : null}
-
-          {step === 1 ? (
-            <section className="bg-card rounded-lg border p-4">
-              <h2 className="text-[13px] font-medium">Preview</h2>
-              <p className="text-muted-foreground mt-1 text-[11px]">
-                The flag as it will exist once it is created.
-              </p>
-
-              <dl className="mt-3 divide-y text-[12px]">
-                <PreviewRow label="Name">{name.trim() || "—"}</PreviewRow>
-                <PreviewRow label="Key">
-                  <span className="font-mono text-[11px]">
-                    {key.trim() || "—"}
-                  </span>
-                </PreviewRow>
-                <PreviewRow label="Type">
-                  {flagTypes.find((item) => item.value === type)?.label ?? type}
-                </PreviewRow>
-                <PreviewRow label="Tags">
-                  {tags.length > 0 ? tags.join(", ") : "None"}
-                </PreviewRow>
-                <PreviewRow label="Description">
-                  {description.trim() || "—"}
-                </PreviewRow>
-              </dl>
-
-              <h3 className="mt-5 text-[12px] font-medium">Variations</h3>
-              <ul className="mt-2 divide-y text-[12px]">
-                {(["on", "off"] as const).map((position) => (
-                  <li
-                    key={position}
-                    className="flex items-center justify-between gap-4 py-2"
-                  >
-                    <span className="text-muted-foreground">
-                      {position === "on" ? "On" : "Off"}
-                    </span>
-                    <span className="font-mono text-[11px]">
-                      {JSON.stringify(values[position])}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <h3 className="mt-5 text-[12px] font-medium">Environment</h3>
-              <p className="text-muted-foreground mt-1 text-[11px]">
-                The flag belongs to the project, so it exists in every
-                environment at once. It is created switched off here, in the
-                environment you are working in.
-              </p>
-              <ul className="mt-2 divide-y text-[12px]">
-                <li className="flex items-center justify-between gap-4 py-2">
-                  <span>{environmentName}</span>
-                  <span className="text-muted-foreground text-[11px]">Off</span>
-                </li>
-              </ul>
-            </section>
-          ) : null}
+            {errors.variations ? (
+              <FieldError>{errors.variations}</FieldError>
+            ) : null}
+          </section>
 
           {errors.form ? <FieldError>{errors.form}</FieldError> : null}
 
@@ -578,48 +452,19 @@ export function CreateFlagForm({
               <Link href={`/environments/${environmentKey}/flags`}>Cancel</Link>
             </Button>
 
-            <div className="flex items-center gap-2">
-              {step > 0 ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToStep(step - 1)}
-                >
-                  Back
-                </Button>
-              ) : null}
-
-              {step < steps.length - 1 ? (
-                <Button
-                  // Distinct keys keep the two buttons as separate elements:
-                  // sharing one DOM node lets the click that advances the step
-                  // also flip the node to `type="submit"` and submit the form.
-                  key="continue"
-                  type="button"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => goToStep(step + 1)}
-                >
-                  Continue
-                </Button>
+            <Button
+              type="submit"
+              size="sm"
+              className="gap-1.5"
+              disabled={pending}
+            >
+              {pending ? (
+                <LoaderCircleIcon className="animate-spin" />
               ) : (
-                <Button
-                  key="create"
-                  type="submit"
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={pending}
-                >
-                  {pending ? (
-                    <LoaderCircleIcon className="animate-spin" />
-                  ) : (
-                    <RocketIcon aria-hidden="true" className="size-3.5" />
-                  )}
-                  {pending ? "Creating…" : "Create Flag"}
-                </Button>
+                <RocketIcon aria-hidden="true" className="size-3.5" />
               )}
-            </div>
+              {pending ? "Creating…" : "Create Flag"}
+            </Button>
           </div>
         </div>
 
@@ -627,29 +472,14 @@ export function CreateFlagForm({
           <SdkPreview
             lines={sdkSnippet({
               flagKey: previewFlagKey,
-              // The value the SDK serves when it cannot reach Dariise: the off
-              // variation, which for a typed flag is not `false`.
-              fallback: JSON.stringify(values.off),
+              type,
+              // The value the flag returns when it is on, and the value the
+              // calling application keeps for itself when the SDK cannot answer
+              // at all. They are different arguments even when they agree here.
+              defaultValue: defaultDraft?.value ?? null,
+              fallback: offDraft?.value ?? null,
             })}
           />
-
-          <section className="bg-card rounded-lg border p-4">
-            <h2 className="text-[13px] font-medium">Best practices</h2>
-            <ul className="mt-3 space-y-2">
-              {bestPractices.map((practice) => (
-                <li
-                  key={practice}
-                  className="text-muted-foreground flex items-start gap-2 text-[12px] leading-5"
-                >
-                  <CheckIcon
-                    aria-hidden="true"
-                    className="text-ok-ink mt-0.5 size-3.5 shrink-0"
-                  />
-                  {practice}
-                </li>
-              ))}
-            </ul>
-          </section>
         </div>
       </div>
     </form>

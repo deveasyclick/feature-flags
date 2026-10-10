@@ -4,7 +4,7 @@ import { requireFlagScope } from "@/components/app/flags/flag-queries";
 
 export const metadata: Metadata = {
   title: "Create Feature Flag",
-  description: "Define a new flag and preview it before it is created.",
+  description: "Name a flag, choose what it returns, and create it.",
 };
 
 export const dynamic = "force-dynamic";

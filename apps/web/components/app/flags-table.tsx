@@ -2,19 +2,19 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  FilterIcon,
-  MoreHorizontalIcon,
-  PencilIcon,
-  SearchIcon,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FilterIcon, MoreHorizontalIcon, SearchIcon } from "lucide-react";
 import { cn } from "cn";
-import type { FlagSummary } from "@dariise/contracts";
+import type {
+  FlagEnvironmentSummary,
+  FlagSummary,
+} from "@dariise/contracts";
 import { ArchiveFlagDialog } from "@/components/app/flags/archive-flag-dialog";
 import { EditFlagDialog } from "@/components/app/flags/edit-flag-dialog";
 import { flagTabHref } from "@/components/app/flags/flag-tabs";
+import { flagState } from "@/components/app/flags/flag-state-pill";
 import { ProgressBar } from "@/components/app/progress-bar";
-import { Badge } from "@/components/ui/badge";
+import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -34,21 +35,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ApiError, flags as flagsApi } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/format";
 
 type StatusView = "active" | "rollout" | "disabled" | "archived";
 
 type StatusFilter = "all" | StatusView;
-
-const statusPresentation: Record<
-  StatusView,
-  { label: string; variant: "ok" | "warn" | "outline" }
-> = {
-  active: { label: "Active", variant: "ok" },
-  rollout: { label: "Rollout", variant: "warn" },
-  disabled: { label: "Disabled", variant: "outline" },
-  archived: { label: "Archived", variant: "outline" },
-};
 
 const statusFilters: Array<{ value: StatusFilter; label: string }> = [
   { value: "all", label: "All statuses" },
@@ -77,14 +69,34 @@ function stateIn(flag: FlagSummary, environmentKey: string | null) {
   );
 }
 
-function statusFor(flag: FlagSummary, environmentKey: string | null): StatusView {
+/**
+ * The status column's reading of one row.
+ *
+ * Derived from `flagState`, which the filter and the state pills also read, so
+ * the three cannot disagree: a row that is disabled, or enabled at a rollout of
+ * zero, serves nobody and reads as disabled rather than as a rollout under way.
+ * There is no "on" reading — the status column separates `active` from `rollout`
+ * by whether the flag is rolled out in full.
+ */
+function statusFor(
+  flag: FlagSummary,
+  environmentKey: string | null,
+  override: FlagEnvironmentSummary | null = null,
+): StatusView {
   if (flag.status === "archived") return "archived";
 
-  const state = stateIn(flag, environmentKey);
+  const state = override ?? stateIn(flag, environmentKey);
 
-  if (!state || !state.enabled) return "disabled";
+  if (!state) return "disabled";
 
-  return state.rolloutPercentage >= 100 ? "active" : "rollout";
+  switch (flagState(state).kind) {
+    case "percentage":
+      return "rollout";
+    case "off":
+      return "disabled";
+    default:
+      return "active";
+  }
 }
 
 function searchableText(flag: FlagSummary): string {
@@ -100,6 +112,7 @@ export function FlagsTable({
   environmentKey,
   environmentName,
   now,
+  protectedEnvironment = false,
 }: {
   readonly projectKey: string;
   readonly flags: FlagSummary[];
@@ -111,26 +124,122 @@ export function FlagsTable({
   readonly environmentName: string | null;
   /** Passed in so relative labels stay stable across hydration. */
   readonly now: string;
+  /**
+   * A protected environment refuses direct publishes, so the quick toggle would
+   * only ever answer 409. The screens propose there instead.
+   */
+  readonly protectedEnvironment?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [editing, setEditing] = useState<FlagSummary | null>(null);
   const [archiving, setArchiving] = useState<FlagSummary | null>(null);
+  /** The row a toggle is in flight for, so its switch can be disabled. */
+  const [toggling, setToggling] = useState<string | null>(null);
+  /** Where a toggle has already moved a row, before the server re-render lands. */
+  const [overrides, setOverrides] = useState<
+    Record<string, FlagEnvironmentSummary>
+  >({});
+  const [toggleError, setToggleError] = useState<{
+    flagKey: string;
+    message: string;
+  } | null>(null);
   const nowDate = useMemo(() => new Date(now), [now]);
   const scopeLabel = environmentName ?? "all environments";
+  const router = useRouter();
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
     return flags.filter((flag) => {
-      if (status !== "all" && statusFor(flag, environmentKey) !== status) {
+      const current = statusFor(
+        flag,
+        environmentKey,
+        overrides[flag.key] ?? null,
+      );
+
+      if (status !== "all" && current !== status) {
         return false;
       }
       if (!needle) return true;
 
       return searchableText(flag).includes(needle);
     });
-  }, [flags, query, status, environmentKey]);
+  }, [flags, query, status, environmentKey, overrides]);
+
+  /**
+   * Flip one flag in one environment from its row.
+   *
+   * The switch moves first and is put back if the API refuses, so the row never
+   * sits on a state the server declined. The server decides the rollout — it
+   * opens at 100% — which is why the response, not the argument, is what the row
+   * is seeded with.
+   */
+  async function handleToggle(flag: FlagSummary, next: boolean) {
+    if (toggling !== null || environmentKey === null) return;
+
+    setToggling(flag.key);
+    setToggleError(null);
+
+    const previous = stateIn(flag, environmentKey);
+    setOverrides((current) => ({
+      ...current,
+      [flag.key]: {
+        environmentKey,
+        environmentName:
+          previous?.environmentName ?? environmentName ?? environmentKey,
+        enabled: next,
+        rolloutPercentage: next
+          ? 100
+          : (previous?.rolloutPercentage ?? 0),
+      },
+    }));
+
+    try {
+      const updated = await flagsApi.setEnabled(
+        projectKey,
+        flag.key,
+        environmentKey,
+        next,
+      );
+
+      setOverrides((current) => ({
+        ...current,
+        [flag.key]: { ...current[flag.key]!, ...updated },
+      }));
+      router.refresh();
+    } catch (toggleFailure) {
+      setOverrides((current) => {
+        const reverted = { ...current };
+        delete reverted[flag.key];
+
+        return reverted;
+      });
+      setToggleError({
+        flagKey: flag.key,
+        message:
+          toggleFailure instanceof ApiError
+            ? toggleFailure.message
+            : "Could not change this flag. Please try again.",
+      });
+    } finally {
+      setToggling(null);
+    }
+  }
+
+  /**
+   * Open one flag's page from anywhere in its row.
+   *
+   * The row carries controls of its own — the quick toggle and the actions menu
+   * — so anything inside `[data-row-action]` is left for that control to handle.
+   * Modified clicks are passed through rather than swallowed, because the key
+   * cell is no longer an anchor of its own.
+   */
+  function openRow(href: string, target: EventTarget | null): void {
+    if (target instanceof Element && target.closest("[data-row-action]")) return;
+
+    router.push(href);
+  }
 
   return (
     <section className="bg-card rounded-lg border">
@@ -190,7 +299,7 @@ export function FlagsTable({
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className={headerClass}>Flag</TableHead>
-            <TableHead className={headerClass}>Status</TableHead>
+            <TableHead className={headerClass}>Enabled</TableHead>
             <TableHead className={headerClass}>Rollout</TableHead>
             <TableHead className={headerClass}>Updated</TableHead>
             <TableHead className={cn(headerClass, "w-10 text-right")}> </TableHead>
@@ -210,48 +319,94 @@ export function FlagsTable({
             </TableRow>
           ) : (
             visible.map((flag) => {
-              const state = stateIn(flag, environmentKey);
-              const presentation = statusPresentation[
-                statusFor(flag, environmentKey)
-              ];
+              // A row a toggle has already moved reads from the override until
+              // the refreshed server data catches up.
+              const state = overrides[flag.key] ?? stateIn(flag, environmentKey);
               const subtitle = [flag.name, flag.owner, flag.description]
                 .filter((value): value is string => Boolean(value))
                 .join(" · ");
               const historyHref = environmentKey
                 ? flagTabHref(projectKey, flag.key, environmentKey, "history")
                 : `/projects/${projectKey}/flags/${flag.key}`;
+              const flagHref = environmentKey
+                ? `/projects/${projectKey}/flags/${flag.key}?environment=${environmentKey}`
+                : `/projects/${projectKey}/flags/${flag.key}`;
 
               return (
-                <TableRow key={flag.key}>
+                <TableRow
+                  key={flag.key}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Open ${flag.key}`}
+                  className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring cursor-pointer"
+                  onClick={(event) => {
+                    // A modified click is the reader asking for a new tab or
+                    // window, which the router cannot honour.
+                    if (event.metaKey || event.ctrlKey || event.shiftKey) return;
+
+                    openRow(flagHref, event.target);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    if (event.target !== event.currentTarget) return;
+
+                    event.preventDefault();
+                    openRow(flagHref, event.target);
+                  }}
+                >
                   <TableCell className={cellClass}>
-                    <Link
-                      href={
-                        environmentKey
-                          ? `/projects/${projectKey}/flags/${flag.key}?environment=${environmentKey}`
-                          : `/projects/${projectKey}/flags/${flag.key}`
-                      }
-                      className="hover:text-primary block font-mono text-[12px] font-medium transition-colors"
-                    >
+                    <span className="block font-mono text-[12px] font-medium">
                       {flag.key}
-                    </Link>
+                    </span>
                     <span className="text-muted-foreground block text-[11px]">
                       {subtitle}
                     </span>
                   </TableCell>
 
                   <TableCell className={cellClass}>
-                    <Badge variant={presentation.variant}>
-                      {presentation.label}
-                    </Badge>
+                    <div className="flex items-center">
+                      <Switch
+                        data-row-action
+                        size="lg"
+                        checked={state?.enabled ?? false}
+                        disabled={
+                          protectedEnvironment ||
+                          toggling !== null ||
+                          environmentKey === null ||
+                          state === null
+                        }
+                        onCheckedChange={(next) => {
+                          void handleToggle(flag, next);
+                        }}
+                        aria-label={`${state?.enabled ? "Disable" : "Enable"} ${flag.key}${environmentName ? ` in ${environmentName}` : ""}`}
+                        title={
+                          protectedEnvironment
+                            ? `${environmentName ?? "This environment"} is protected — propose the change from the flag instead`
+                            : undefined
+                        }
+                      />
+                    </div>
+                    {toggleError?.flagKey === flag.key ? (
+                      <FieldError>{toggleError.message}</FieldError>
+                    ) : null}
                   </TableCell>
 
                   <TableCell className={cellClass}>
                     {state ? (
                       <div className="flex w-28 items-center gap-2">
-                        <ProgressBar
-                          value={state.rolloutPercentage}
-                          label={`${flag.key} rollout in ${state.environmentName}`}
-                        />
+                        {state.enabled ? (
+                          <ProgressBar
+                            value={state.rolloutPercentage}
+                            label={`${flag.key} rollout in ${state.environmentName}`}
+                          />
+                        ) : (
+                          // A flag that serves nobody has no progress to show; a
+                          // bar here reads as a rollout that is under way.
+                          <span
+                            aria-hidden="true"
+                            className="bg-muted h-1.5 w-full rounded-full"
+                          />
+                        )}
                         <span className="text-muted-foreground w-8 shrink-0 text-right text-[11px]">
                           {state.rolloutPercentage}%
                         </span>
@@ -267,19 +422,10 @@ export function FlagsTable({
 
                   <TableCell className={cn(cellClass, "text-right")}>
                     <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Edit ${flag.key}`}
-                        onClick={() => {
-                          setEditing(flag);
-                        }}
-                      >
-                        <PencilIcon aria-hidden="true" />
-                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
+                            data-row-action
                             variant="ghost"
                             size="icon-sm"
                             aria-label={`More actions for ${flag.key}`}
@@ -294,7 +440,7 @@ export function FlagsTable({
                               setEditing(flag);
                             }}
                           >
-                            Edit flag
+                            Edit details
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
                             <Link href={historyHref}>View history</Link>

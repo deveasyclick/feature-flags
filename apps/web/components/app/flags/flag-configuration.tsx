@@ -67,6 +67,9 @@ export function FlagConfiguration({
   const router = useRouter();
 
   const environmentLabel = config.environmentName;
+  const servingName =
+    flag.variations.find((variation) => variation.key === serving)?.name ??
+    serving;
 
   async function handlePublish() {
     if (pending) return;
@@ -118,6 +121,9 @@ export function FlagConfiguration({
       setServing(updated.defaultVariation);
       setPercentage(updated.rolloutPercentage);
       setPublished("just now");
+      // The identity strip above the tabs is a Server Component, so its
+      // Enabled/Disabled badge only moves when the server data is re-read.
+      router.refresh();
     } catch (publishError) {
       if ((publishError as Error)?.name === "AbortError") return;
 
@@ -154,7 +160,7 @@ export function FlagConfiguration({
           </div>
 
           <div className="mt-4 space-y-2">
-            <Label htmlFor="flag-serving">Serving behaviour</Label>
+            <Label htmlFor="flag-serving">Default value</Label>
             <Select value={serving} onValueChange={setServing}>
               <SelectTrigger
                 id="flag-serving"
@@ -171,12 +177,14 @@ export function FlagConfiguration({
               </SelectContent>
             </Select>
             <p className="text-muted-foreground text-[11px]">
-              Evaluated for every user who does not match a targeting rule.
+              Returned when the flag is on and no targeting rule selects
+              something else. A rollout passes over it at or above its
+              threshold.
             </p>
           </div>
 
           <div className="mt-4 space-y-2">
-            <Label htmlFor="flag-off-variation">Off variation</Label>
+            <Label htmlFor="flag-off-variation">Off value</Label>
             <Select value={offVariation} onValueChange={setOffVariation}>
               <SelectTrigger
                 id="flag-off-variation"
@@ -193,8 +201,8 @@ export function FlagConfiguration({
               </SelectContent>
             </Select>
             <p className="text-muted-foreground text-[11px]">
-              Served while the flag is off in {environmentLabel}, and used as the
-              SDK fallback.
+              Returned while the flag is off in {environmentLabel}, to subjects a
+              rollout passes over, and when the SDK cannot reach Dariise.
             </p>
           </div>
         </section>
@@ -202,7 +210,9 @@ export function FlagConfiguration({
         <section className="bg-card rounded-lg border p-4">
           <h2 className="text-[13px] font-medium">Percentage Rollout</h2>
           <p className="text-muted-foreground mt-1 text-[11px]">
-            Gradually release this variation to a share of users.
+            Send a share of users the default value and everyone else the off
+            value. Below the percentage gets the default, at or above it gets the
+            off value, so 0% serves nobody and 100% serves everybody.
           </p>
 
           <div className="mt-5">
@@ -229,7 +239,8 @@ export function FlagConfiguration({
                 {percentage}%
               </p>
               <p className="text-muted-foreground text-right text-[11px]">
-                of users in {environmentLabel} will receive &quot;{serving}&quot;
+                of users in {environmentLabel} will receive the default value
+                &quot;{servingName}&quot;
               </p>
             </div>
             <div className="text-muted-foreground mt-3 flex items-center justify-between gap-4 text-[11px]">
