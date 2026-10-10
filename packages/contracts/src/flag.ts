@@ -311,18 +311,22 @@ export const flagVersionSchema = z.object({
 export type FlagVersion = z.infer<typeof flagVersionSchema>;
 
 /**
- * The values a flag starts with, chosen as it is created.
+ * One value a flag is created with.
  *
- * A `string` flag still has to serve something while it is off, so both values
- * are asked for rather than guessed. Boolean flags leave this out: their two
- * values are the two booleans.
+ * `name` is omitted by callers that do not care to label their variations, and
+ * the API derives a label from the key. `value` is what the flag serves; `key`
+ * is the identifier every environment's configuration and targeting rule points
+ * at, which is why a flag with three or more values has to name each of them.
  */
-export const flagValuesInputSchema = z.object({
-  on: flagVariationValueSchema,
-  off: flagVariationValueSchema,
+export const flagCreationVariationSchema = z.object({
+  key: z.string().trim().min(1, "A variation key is required."),
+  name: z.string().trim().min(1).max(80).optional(),
+  value: flagVariationValueSchema,
 });
 
-export type FlagValuesInput = z.infer<typeof flagValuesInputSchema>;
+export type FlagCreationVariation = z.infer<
+  typeof flagCreationVariationSchema
+>;
 
 export const createFlagSchema = z
   .object({
@@ -336,49 +340,90 @@ export const createFlagSchema = z
     type: flagTypeSchema.default("boolean"),
     tags: z.array(z.string().trim().min(1)).default([]),
     owner: z.string().trim().min(1).nullable().optional(),
-    /** Omitted for a boolean flag, and for a caller content with placeholders. */
-    values: flagValuesInputSchema.optional(),
     /**
-     * The keys the flag's two starting variations carry. A string flag may name
-     * them, because an `on`/`off` key says nothing about the values behind it;
-     * every other type keeps the conventional pair.
+     * Every value the flag starts with, in order, plus the two the environment
+     * selects. All three are omitted together by a caller content with the
+     * conventional `on`/`off` pair, which the API seeds.
      */
-    variationKeys: z
-      .object({
-        on: z.string().trim().min(1, "A variation key is required."),
-        off: z.string().trim().min(1, "A variation key is required."),
-      })
+    variations: z
+      .array(flagCreationVariationSchema)
+      .min(1, "A flag needs at least one variation.")
       .optional(),
+    /** The variation served when the flag is on and nothing else selects one. */
+    defaultVariation: z.string().trim().min(1).optional(),
+    /** The variation served when the flag is off, and as the SDK's fallback. */
+    offVariation: z.string().trim().min(1).optional(),
   })
   .superRefine((input, ctx) => {
-    if (input.values) {
-      for (const field of ["on", "off"] as const) {
-        if (!variationValueMatchesType(input.type, input.values[field])) {
-          ctx.addIssue({
-            code: "custom",
-            path: ["values", field],
-            message: `The "${field}" value of a ${input.type} flag has to be a ${input.type}.`,
-          });
-        }
+    const declared = [
+      input.variations ?? null,
+      input.defaultVariation ?? null,
+      input.offVariation ?? null,
+    ];
+
+    if (declared.every((entry) => entry === null)) return;
+
+    if (declared.some((entry) => entry === null)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["variations"],
+        message:
+          "variations, defaultVariation and offVariation have to be given together.",
+      });
+
+      return;
+    }
+
+    const variations = input.variations!;
+
+    for (const [index, variation] of variations.entries()) {
+      if (!variationValueMatchesType(input.type, variation.value)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["variations", index, "value"],
+          message: `Every value of a ${input.type} flag has to be a ${input.type}.`,
+        });
       }
     }
 
-    if (!input.variationKeys) return;
+    const keys = variations.map((variation) => variation.key);
 
-    if (input.type !== "string") {
+    if (new Set(keys).size !== keys.length) {
       ctx.addIssue({
         code: "custom",
-        path: ["variationKeys"],
-        message: "Only a string flag can name its two starting variations.",
+        path: ["variations"],
+        message: "Every variation needs a different key.",
       });
     }
 
-    if (input.variationKeys.on === input.variationKeys.off) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["variationKeys"],
-        message: "The two starting variations need different keys.",
-      });
+    for (const [field, key] of [
+      ["defaultVariation", input.defaultVariation!],
+      ["offVariation", input.offVariation!],
+    ] as const) {
+      if (!keys.includes(key)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [field],
+          message: `"${key}" is not one of the variations this flag is created with.`,
+        });
+      }
+    }
+
+    // Every other type keeps the conventional `on`/`off` pair, which targeting
+    // rules and the SDK preview already assume; a string flag names its own.
+    if (input.type !== "string") {
+      for (const key of keys) {
+        if (key !== "on" && key !== "off") {
+          ctx.addIssue({
+            code: "custom",
+            path: ["variations"],
+            message:
+              "Only a string flag can be created with a variation list of its own.",
+          });
+
+          break;
+        }
+      }
     }
   });
 
@@ -403,6 +448,19 @@ export const updateFlagConfigSchema = z.object({
 });
 
 export type UpdateFlagConfigInput = z.infer<typeof updateFlagConfigSchema>;
+
+/**
+ * The one-field switch behind the flag list's quick toggle.
+ *
+ * Deliberately narrower than `updateFlagConfigSchema`: a list row has no opinion
+ * about variations or rollout, and sending the whole configuration would make the
+ * toggle a read-modify-write over fields the reader never saw.
+ */
+export const setFlagEnabledSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export type SetFlagEnabledInput = z.infer<typeof setFlagEnabledSchema>;
 
 export const replaceTargetingRulesSchema = z.object({
   rules: z.array(targetingRuleInputSchema),
