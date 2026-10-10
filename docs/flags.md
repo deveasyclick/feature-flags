@@ -35,25 +35,37 @@ What it does in one environment lives in `flag_environment_configs`, keyed by
 | `rollout_percentage`, `bucket_by`            | `rolloutPercentage`, `bucketBy`    | Integer 0–100, default `0`, and the subject attribute to bucket on, default `userId`. |
 | `created_at`, `updated_at`                   | `createdAt`, `updatedAt`           | ISO timestamps on the wire.                                                           |
 
-Creation takes `key`, `name`, optional `description`, `tags` and `owner`, an optional `type`, an
-optional `values` pair — and no `environmentKey`. A flag starts with two variations: `on` at
-priority 0 and `off` at priority 1, whose values come from `values` or from the API's
-`defaultVariations(type)` seeds, seeded identically into every environment's configuration; a
-richer variation set is added afterwards in the flag-level variations editor.
+Creation takes `key`, `name`, optional `description`, `tags` and `owner`, an optional `type` —
+and no `environmentKey`. It may also carry the whole set of values the flag starts with:
 
-**A string flag may name those two keys**, with an optional `variationKeys` object of `{ on, off }`
-(trimmed, distinct, and refused for every other type with "Only a string flag can name its two
-starting variations"). It exists because `on`/`off` says nothing about the values a string flag
-carries: a flag whose values are `"new-checkout"` and `"old-checkout"` reads better keyed
-`variant-a` and `control`. Each starting variation's label is its key with the first letter
-capitalised, and every environment's configuration is created selecting those keys, so a
+| Field              | Meaning                                                                          |
+| ------------------ | -------------------------------------------------------------------------------- |
+| `variations`       | The values to create, each `{ key, name?, value }`, in order.                     |
+| `defaultVariation` | The key served when the flag is on and nothing else selects a value.             |
+| `offVariation`     | The key served when the flag is off, and as the SDK's fallback.                  |
+
+The three are given together or not at all. A caller content with the conventional pair omits
+them, and the API seeds `on` at priority 0 and `off` at priority 1 from
+`defaultVariations(type)` — the same two values every other type uses. A **string flag may start
+with any number of values**, which is how a multivariate experiment begins: `control`, `compact`
+and `one-page` in one request, with `defaultVariation` and `offVariation` naming two of them.
+Every other type is kept to the `on`/`off` keys, because targeting rules and the SDK preview
+assume that pair; giving one a list of its own is refused with "Only a string flag can be created
+with a variation list of its own."
+
+`variations` is refused when any two entries share a key ("Every variation needs a different
+key."), when a value does not match the declared `type`, or when `defaultVariation` or
+`offVariation` names a key the list does not carry. Each starting variation's label is its `name`,
+or its key with the first letter capitalised, and every environment's configuration is created
+selecting `defaultVariation` and `offVariation`, so a
 configuration never points at a variation that does not exist.
 
 A value that does not match the declared type is refused at creation and on every later variation
 write. All four types are selectable in the create form, and the variations editor renders a value
 control chosen by the declared type. A boolean flag's two values are the two booleans and nothing
-more is asked for; another type is asked for its serving and off values, and a string flag is asked
-for their keys as well. The type cannot be changed after creation. `updated_at` moves on an identity
+more is asked for. Another type is asked for a list of keyed values, starting at two, and which of
+them the default and the off slots select; a string flag may add as many as it needs. The type
+cannot be changed after creation. `updated_at` moves on an identity
 update and an archive; a configuration publish moves that configuration's `updated_at`, not the
 flag's.
 
@@ -92,6 +104,7 @@ the canonical detail.
 | `DELETE` | `FLAG/variations/:variationKey`                         | Remove a variation; 409 while an environment references it.                                                                                     | `engineer`                 |
 | `GET`    | `FLAG/environments/:environmentKey`                     | That environment's configuration: `enabled`, `offVariation`, `defaultVariation`, `rolloutPercentage`, `bucketBy`, rules and individual targets. | `viewer`                   |
 | `PATCH`  | `FLAG/environments/:environmentKey`                     | Publish `enabled`, `offVariation`, `defaultVariation`, `rolloutPercentage` and `bucketBy`; variations are not part of it.                       | `engineer`                 |
+| `PATCH`  | `FLAG/environments/:environmentKey/enabled`             | Flip `enabled` alone, for the flag list's quick toggle. Switching on also sets the rollout to 100.                                              | `engineer`                 |
 | `GET`    | `FLAG/environments/:environmentKey/rules`               | Read the ordered targeting rules.                                                                                                               | `viewer`                   |
 | `PUT`    | `FLAG/environments/:environmentKey/rules`               | Replace the whole targeting rule set.                                                                                                           | `engineer`                 |
 | `GET`    | `FLAG/environments/:environmentKey/targets`             | Read the individual targets.                                                                                                                    | `viewer`                   |
@@ -102,17 +115,18 @@ the canonical detail.
 Every route runs behind the session middleware and resolves the workspace first, so a caller
 with no workspace answers 404. The minimum role is what the service method passes to the project
 access gate (`docs/authorization.md`). A configuration, rules or targets write aimed at a
-protected environment answers 409 `approval_required` instead of writing; identity edits are
-project-wide and direct, so protected environments do not gate them. `docs/change-requests.md`
-owns what follows.
+protected environment answers 409 `approval_required` instead of writing — the `enabled` toggle
+included; identity edits are project-wide and direct, so protected environments do not gate them.
+`docs/change-requests.md` owns what follows.
 
 ## Variations
 
 A variation is one value the flag can serve, and it belongs to the flag rather than to an
 environment: rows in `flag_variations` keyed by `flag_id`, with a `key` unique within the flag
 (`flag_variation_flag_key_idx`), a `name`, a `value` (`jsonb`, its legal shapes decided by the
-flag's `type`), a nullable `description`, and a `priority`. Creation inserts exactly two: `on`
-at priority 0 and `off` at priority 1, named "On" and "Off". The wire variation is
+flag's `type`), a nullable `description`, and a `priority`. Creation inserts the requested list in
+order, or the conventional `on` at priority 0 and `off` at priority 1 named "On" and "Off" when the
+caller declares none. The wire variation is
 `{ key, name, value, description }`: priority is not on the wire, but reads are ordered by it.
 Every environment selects among the same keys.
 
@@ -167,11 +181,11 @@ rule, reporting the reason `targeting_rule` when it serves one; the full order i
 
 `rolloutPercentage` is an integer 0–100 on the environment's configuration and `bucketBy` names
 the subject attribute to bucket on, falling back to the subject id when that attribute is absent.
-When the percentage is strictly between 0 and 100 the engine buckets the subject and serves the
-default variation below the threshold and the off variation at or above it, with the reason
-`percentage_rollout`. At 100 and at 0 that branch is skipped and the default variation is served
-with the reason `default_variation`. The hash is defined in `docs/evaluation.md`; the consequence
-of the 0 case is recorded in `docs/architecture.md §5`.
+Below 100 the engine buckets the subject and serves the default variation under the threshold and
+the off variation at or above it, with the reason `percentage_rollout`. Both endpoints are
+thresholds like any other: 0 sends everybody to the off variation, and only 100 skips the bucket
+and serves the default variation to everyone with the reason `default_variation`. The hash is
+defined in `docs/evaluation.md`.
 
 **The flag-level percentage splits exactly two variations: the default and the off variation.** It
 is not a weighted distribution across the flag's whole variation set. To serve one variation to a

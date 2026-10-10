@@ -125,9 +125,10 @@ The evaluation reason vocabulary lives in `packages/contracts`. It includes `err
 is not currently produced — evaluation failures reach `app.onError` as generic 500
 responses.
 
-**Known defect.** At the flag level the engine branches only on percentages strictly between
-`0` and `100`, so an enabled flag at `0%` serves the default variation to everyone and `0%`
-behaves like `100%`. This is an implementation defect, not an intended semantic.
+At the flag level both endpoints are thresholds: `0%` serves the off variation to everyone and
+`100%` serves the default variation to everyone, so the bucket is skipped only at `100%`.
+Setting a rollout and enabling a flag are separate decisions, and a flag left enabled at `0%`
+serves nobody.
 
 → Resolution order, the seven reasons the code produces, operator semantics, the exact bucketing input and the
 `/v1/evaluate` contract: `docs/evaluation.md`

@@ -16,7 +16,7 @@ The engine returns at the first step that produces a variation.
 2. **Disabled flag.** `config.enabled` false serves `config.offVariation` with reason `flag_disabled`, again with `matchedRuleId` `null` and `enabled` false.
 3. **Individual targets.** The first entry of `input.targets` whose `userId` equals `subject.id` serves that entry's `variationKey` with reason `targeting_rule` and `matchedRuleId` `null`. This step has no reason of its own: a target match reports `targeting_rule`.
 4. **Ordered targeting rules.** The first rule that matches serves the rule's `variation` with `matchedRuleId` set to the rule id, and reason `segment` when the rule references at least one segment key, otherwise `targeting_rule`. The gates are in "Rule evaluation semantics" below.
-5. **Flag-level percentage rollout.** When `0 < rolloutPercentage < 100`, the subject is bucketed and the engine serves `config.defaultVariation` when the bucket is below the percentage and `config.offVariation` otherwise, always with reason `percentage_rollout` and `matchedRuleId` `null`.
+5. **Flag-level percentage rollout.** When `rolloutPercentage < 100`, the subject is bucketed and the engine serves `config.defaultVariation` when the bucket is below the percentage and `config.offVariation` otherwise, always with reason `percentage_rollout` and `matchedRuleId` `null`. `0` is a threshold like any other, so it sends every subject to the off variation; only `100` skips the bucket.
 6. **Default variation.** Any other flow serves `config.defaultVariation` with reason `default_variation` and `matchedRuleId` `null`.
 
 A flag, environment or configuration that does not resolve never reaches the engine.
@@ -94,17 +94,11 @@ This input is frozen. Changing the hash input, its separators or the version res
 
 The hashed value is chosen by `bucketValue(subject, bucketBy)`: the subject's attribute named by `bucketBy`, stringified, falling back to `subject.id` when that attribute is `undefined`. Attribute lookup comes first, so the subject id is a fallback and not an additional input.
 
-## Known defect: flag-level 0% behaves like 100%
+## The flag-level rollout endpoints
 
-The flag-level rollout branch in `packages/engine/src/evaluate.ts:180` is guarded by:
+Both endpoints are ordinary thresholds, so the branch in `packages/engine/src/evaluate.ts` is guarded by `percentage < 100` alone. `0` sends every subject to `config.offVariation` — with `enabled` therefore false, since `serve` derives it from the served variation — and `100` serves `config.defaultVariation` to everyone with reason `default_variation`. The rule-level rollout reaches the same conclusion from the other side: it branches on `rule.rolloutPercentage !== null` and handles `0` by never applying the rule.
 
-```ts
-if (percentage > 0 && percentage < 100) {
-```
-
-Because the branch runs only inside that open interval, an enabled flag whose `rolloutPercentage` is `0` skips step 5 and reaches step 6, serving `config.defaultVariation` to every subject with reason `default_variation`. With the column defaults `defaultVariationKey` `on` and `offVariationKey` `off`, that is the on variation and `enabled` is true, exactly what a rollout of 100% would produce. A percentage of `0` therefore behaves like a percentage of `100`.
-
-This is an implementation defect, not an intended semantic. The rule-level rollout does not share it: that path branches on `rule.rolloutPercentage !== null` and handles `0` by never applying the rule. No fix is agreed here, and this document does not propose one.
+An earlier revision skipped the bucket at both endpoints, which made an enabled flag at `0%` serve the default variation to everyone. That is fixed; the behaviour is now what the percentage says. Note the consequence for stored configuration: a flag left `enabled` at `0%` serves nobody, so enabling a flag and setting its rollout are separate decisions.
 
 ## The evaluation API
 
@@ -161,7 +155,7 @@ Condition values arrive from `jsonb` and are normalised by the repository's `toV
 
 Built: the pure engine with its full resolution order; the seven reasons the code actually produces; bucketing with the frozen `v1` input; `POST /v1/evaluate` behind a session; the repository queries that assemble an evaluation input; and the `GET /v1/sdk/config` snapshot with its runtime-key authentication (`docs/sdk.md`).
 
-Partial: the `error` reason is in the contract vocabulary but has no producer, and evaluation failures surface as a generic 500 through `app.onError`. The flag-level `0%` defect documented above serves the default variation to everyone.
+Partial: the `error` reason is in the contract vocabulary but has no producer, and evaluation failures surface as a generic 500 through `app.onError`.
 
 Not built: the Redis configuration cache that would feed evaluation later (`docs/architecture.md §8.1`); evaluation reads the database on every request.
 
