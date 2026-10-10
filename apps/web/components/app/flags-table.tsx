@@ -15,7 +15,10 @@ import {
 } from "@/components/app/flags/archive-flag-dialog";
 import { EditFlagDialog } from "@/components/app/flags/edit-flag-dialog";
 import { flagTabHref } from "@/components/app/flags/flag-tabs";
-import { flagState } from "@/components/app/flags/flag-state-pill";
+import {
+  FlagStatusBadge,
+  flagState,
+} from "@/components/app/flags/flag-state-pill";
 import { ProgressBar } from "@/components/app/progress-bar";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
@@ -330,6 +333,10 @@ export function FlagsTable({
               // A row a toggle has already moved reads from the override until
               // the refreshed server data catches up.
               const state = overrides[flag.key] ?? stateIn(flag, environmentKey);
+              // An archived flag serves its off variation everywhere, so the row
+              // reads as serving nothing whatever its stored config says.
+              const archived = flag.status === "archived";
+              const serving = !archived && (state?.enabled ?? false);
               const subtitle = [flag.name, flag.owner, flag.description]
                 .filter((value): value is string => Boolean(value))
                 .join(" · ");
@@ -363,8 +370,13 @@ export function FlagsTable({
                   }}
                 >
                   <TableCell className={cellClass}>
-                    <span className="block font-mono text-[12px] font-medium">
-                      {flag.key}
+                    <span className="flex items-center gap-2">
+                      <span className="font-mono text-[12px] font-medium">
+                        {flag.key}
+                      </span>
+                      {archived ? (
+                        <FlagStatusBadge status={flag.status} />
+                      ) : null}
                     </span>
                     <span className="text-muted-foreground block text-[11px]">
                       {subtitle}
@@ -376,8 +388,9 @@ export function FlagsTable({
                       <Switch
                         data-row-action
                         size="lg"
-                        checked={state?.enabled ?? false}
+                        checked={serving}
                         disabled={
+                          archived ||
                           protectedEnvironment ||
                           toggling !== null ||
                           environmentKey === null ||
@@ -386,11 +399,13 @@ export function FlagsTable({
                         onCheckedChange={(next) => {
                           void handleToggle(flag, next);
                         }}
-                        aria-label={`${state?.enabled ? "Disable" : "Enable"} ${flag.key}${environmentName ? ` in ${environmentName}` : ""}`}
+                        aria-label={`${serving ? "Disable" : "Enable"} ${flag.key}${environmentName ? ` in ${environmentName}` : ""}`}
                         title={
-                          protectedEnvironment
-                            ? `${environmentName ?? "This environment"} is protected — propose the change from the flag instead`
-                            : undefined
+                          archived
+                            ? "This flag is archived — every environment serves its off variation. Restore it to change this."
+                            : protectedEnvironment
+                              ? `${environmentName ?? "This environment"} is protected — propose the change from the flag instead`
+                              : undefined
                         }
                       />
                     </div>
@@ -400,9 +415,9 @@ export function FlagsTable({
                   </TableCell>
 
                   <TableCell className={cellClass}>
-                    {state ? (
+                    {state && !archived ? (
                       <div className="flex w-28 items-center gap-2">
-                        {state.enabled ? (
+                        {serving ? (
                           <ProgressBar
                             value={state.rolloutPercentage}
                             label={`${flag.key} rollout in ${state.environmentName}`}
