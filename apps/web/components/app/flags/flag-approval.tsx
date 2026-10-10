@@ -22,6 +22,8 @@ interface FlagApprovalPanelProps {
   readonly request: FlagChangeRequest | null;
   /** Whether this environment refuses direct publishes. */
   readonly protectedEnvironment: boolean;
+  /** An archived flag refuses every change, including an approved one. */
+  readonly archived: boolean;
 }
 
 /**
@@ -37,6 +39,7 @@ export function FlagApprovalPanel({
   flagKey,
   request,
   protectedEnvironment,
+  archived,
 }: FlagApprovalPanelProps) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -48,7 +51,7 @@ export function FlagApprovalPanel({
   if (!protectedEnvironment) return null;
 
   async function decide(decision: "approve" | "reject") {
-    if (pending || !request) return;
+    if (pending || archived || !request) return;
     setPending(true);
     setError(null);
     controllerRef.current?.abort();
@@ -123,6 +126,7 @@ export function FlagApprovalPanel({
         <div className="mt-3 space-y-2">
           <Textarea
             rows={2}
+            disabled={archived}
             value={note}
             placeholder="Why is this being rejected?"
             aria-label="Rejection note"
@@ -131,7 +135,7 @@ export function FlagApprovalPanel({
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              disabled={pending}
+              disabled={pending || archived}
               onClick={() => decide("reject")}
               className="gap-1.5 text-[11px]"
             >
@@ -145,7 +149,7 @@ export function FlagApprovalPanel({
             <Button
               variant="ghost"
               size="sm"
-              disabled={pending}
+              disabled={pending || archived}
               onClick={() => setRejecting(false)}
               className="text-[11px]"
             >
@@ -153,6 +157,11 @@ export function FlagApprovalPanel({
             </Button>
           </div>
         </div>
+      ) : archived ? (
+        <p className="text-muted-foreground mt-3 text-[11px]">
+          This flag is archived, so this change cannot be applied. Restore the
+          flag first.
+        </p>
       ) : request.canDecide ? (
         <div className="mt-3 flex items-center gap-2">
           <Button
@@ -171,7 +180,7 @@ export function FlagApprovalPanel({
           <Button
             variant="outline"
             size="sm"
-            disabled={pending}
+            disabled={pending || archived}
             onClick={() => setRejecting(true)}
             className="gap-1.5 text-[11px]"
           >

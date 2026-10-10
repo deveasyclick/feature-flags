@@ -18,6 +18,7 @@ export const AUDIT_ACTIONS = [
   "flag.enabled",
   "flag.disabled",
   "flag.archived",
+  "flag.unarchived",
   "flag.variation.added",
   "flag.variation.updated",
   "flag.variation.removed",

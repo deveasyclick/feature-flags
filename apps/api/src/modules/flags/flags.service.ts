@@ -133,8 +133,7 @@ export class FlagsService {
     const page = toPage(
       rows,
       query.limit,
-      (row) =>
-        `${row.projectKey}${WORKSPACE_FLAG_CURSOR_SEPARATOR}${row.key}`,
+      (row) => `${row.projectKey}${WORKSPACE_FLAG_CURSOR_SEPARATOR}${row.key}`,
     );
 
     const data = await this.loadListRows(page.data, {
@@ -350,6 +349,9 @@ export class FlagsService {
       minimumRole: "engineer",
     });
     const row = await this.requireFlag(project.id, flagKey);
+
+    this.assertActive(row);
+
     const variations = await this.repository.listVariations(row.id);
 
     if (variations.some((variation) => variation.key === input.key)) {
@@ -398,6 +400,9 @@ export class FlagsService {
       minimumRole: "engineer",
     });
     const row = await this.requireFlag(project.id, flagKey);
+
+    this.assertActive(row);
+
     const variations = await this.repository.listVariations(row.id);
 
     if (!variations.some((variation) => variation.key === variationKey)) {
@@ -446,6 +451,9 @@ export class FlagsService {
       minimumRole: "engineer",
     });
     const row = await this.requireFlag(project.id, flagKey);
+
+    this.assertActive(row);
+
     const variations = await this.repository.listVariations(row.id);
 
     if (!variations.some((variation) => variation.key === variationKey)) {
@@ -531,8 +539,12 @@ export class FlagsService {
     });
     const row = await this.requireFlag(project.id, flagKey);
 
+    if (row.status === "archived") {
+      throw ApiError.conflict("That flag is already archived.");
+    }
+
     await db.transaction(async (tx) => {
-      await this.repository.archive(tx, row.id);
+      await this.repository.setStatus(tx, row.id, "archived");
 
       await writeAuditLog(tx, {
         organizationId: context.organizationId,
@@ -546,6 +558,46 @@ export class FlagsService {
     });
 
     return { key: row.key, status: "archived" };
+  }
+
+  /**
+   * The reverse of `archive`, and not a rollback of anything else.
+   *
+   * Archive writes `status` alone, so every environment still holds the
+   * `enabled` and rollout it had, and a restored flag resumes exactly the state
+   * it was switched to before it was archived.
+   */
+  async unarchive(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+  ): Promise<{ key: string; status: string }> {
+    const { project } = await this.projectAccess.require({
+      ...context,
+      projectKey,
+      minimumRole: "engineer",
+    });
+    const row = await this.requireFlag(project.id, flagKey);
+
+    if (row.status !== "archived") {
+      throw ApiError.conflict("That flag is not archived.");
+    }
+
+    await db.transaction(async (tx) => {
+      await this.repository.setStatus(tx, row.id, "active");
+
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: project.id,
+        actor: context.userId,
+        actorName: context.userName,
+        action: "flag.unarchived",
+        target: row.id,
+        changes: { status: "active" },
+      });
+    });
+
+    return { key: row.key, status: "active" };
   }
 
   async updateEnvironmentConfig(
@@ -563,6 +615,7 @@ export class FlagsService {
       "engineer",
     );
 
+    this.assertActive(scope.flag);
     this.assertPublishable(scope.environment);
     await this.validateConfigInput(scope, input);
 
@@ -585,20 +638,6 @@ export class FlagsService {
     });
   }
 
-  /**
-   * Flip one flag on or off in one environment, behind the list's quick toggle.
-   *
-   * Narrower than `updateEnvironmentConfig` on purpose: a list row carries no
-   * opinion about variations or rollout, and sending the whole configuration
-   * would make the toggle a read-modify-write over fields the reader never saw.
-   * Every field the caller did not set is carried over from the stored config, so
-   * this can only move `enabled` and the rollout below.
-   *
-   * Switching on also rolls the flag out to 100%: the two are separate columns,
-   * and because 0% now means "serve nobody", switching on without saying so would
-   * leave the flag enabled and yet served to no one. Switching off leaves the
-   * percentage alone, so it is still there if the flag is switched back on.
-   */
   async setEnvironmentEnabled(
     context: FlagsActorContext,
     projectKey: string,
@@ -614,15 +653,14 @@ export class FlagsService {
       "engineer",
     );
 
+    this.assertActive(scope.flag);
     this.assertPublishable(scope.environment);
 
     const config: UpdateFlagConfigInput = {
       enabled: input.enabled,
       offVariation: scope.config.offVariationKey,
       defaultVariation: scope.config.defaultVariationKey,
-      rolloutPercentage: input.enabled
-        ? 100
-        : scope.config.rolloutPercentage,
+      rolloutPercentage: input.enabled ? 100 : scope.config.rolloutPercentage,
       bucketBy: scope.config.bucketBy,
     };
 
@@ -672,6 +710,7 @@ export class FlagsService {
       "engineer",
     );
 
+    this.assertActive(scope.flag);
     this.assertPublishable(scope.environment);
     await this.validateRules(scope, input);
 
@@ -718,6 +757,7 @@ export class FlagsService {
       "engineer",
     );
 
+    this.assertActive(scope.flag);
     this.assertPublishable(scope.environment);
     await this.validateTargets(scope, input);
 
@@ -807,7 +847,10 @@ export class FlagsService {
       return this.loadDetail(row);
     }
 
-    const environment = await this.requireEnvironment(project.id, environmentKey);
+    const environment = await this.requireEnvironment(
+      project.id,
+      environmentKey,
+    );
 
     return this.loadDetail(row, { environmentId: environment.id });
   }
@@ -950,6 +993,8 @@ export class FlagsService {
       "engineer",
     );
 
+    this.assertActive(scope.flag);
+
     if (payload.config) {
       await this.validateConfigInput(scope, payload.config);
     }
@@ -982,7 +1027,10 @@ export class FlagsService {
       minimumRole,
     });
 
-    const environment = await this.requireEnvironment(project.id, environmentKey);
+    const environment = await this.requireEnvironment(
+      project.id,
+      environmentKey,
+    );
     const row = await this.requireFlag(project.id, flagKey);
     const config = await this.requireConfig(row.id, environment.id);
 
@@ -1163,6 +1211,19 @@ export class FlagsService {
   private assertPublishable(environment: EnvironmentRef): void {
     if (environment.isProtected) {
       throw ApiError.approvalRequired(environment.key);
+    }
+  }
+
+  /**
+   * An archived flag serves its off variation everywhere whatever its
+   * configuration says, so that configuration is read-only until it is
+   * restored. The identity of the flag is still editable.
+   */
+  private assertActive(flag: FlagRow): void {
+    if (flag.status === "archived") {
+      throw ApiError.conflict(
+        "This flag is archived. Restore it before changing what it serves.",
+      );
     }
   }
 

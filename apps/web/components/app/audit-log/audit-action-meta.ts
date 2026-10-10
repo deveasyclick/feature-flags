@@ -128,6 +128,12 @@ export const auditActionMeta: Record<AuditAction, AuditActionMeta> = {
     verb: "archived",
     targetLabel: "Flag",
   },
+  "flag.unarchived": {
+    icon: ArchiveRestoreIcon,
+    tone: "bg-ok-ink/10 text-ok-ink",
+    verb: "restored",
+    targetLabel: "Flag",
+  },
   "flag.variation.added": {
     icon: PlusIcon,
     tone: "bg-primary-ink/10 text-primary-ink",

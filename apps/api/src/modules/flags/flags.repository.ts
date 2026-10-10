@@ -15,6 +15,7 @@ import {
 import type {
   CreateFlagVariationInput,
   FlagIndividualTarget,
+  FlagStatus,
   TargetingRuleInput,
   UpdateFlagVariationInput,
 } from "@dariise/contracts";
@@ -231,10 +232,14 @@ export class FlagsRepository {
       .where(eq(flag.id, id));
   }
 
-  async archive(tx: Transaction, id: string): Promise<void> {
+  async setStatus(
+    tx: Transaction,
+    id: string,
+    status: FlagStatus,
+  ): Promise<void> {
     await tx
       .update(flag)
-      .set({ status: "archived", updatedAt: new Date() })
+      .set({ status, updatedAt: new Date() })
       .where(eq(flag.id, id));
   }
 

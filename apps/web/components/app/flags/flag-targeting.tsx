@@ -99,6 +99,7 @@ export function FlagTargeting({
   const router = useRouter();
   const [submitted, setSubmitted] = useState(false);
 
+  const archived = flag.status === "archived";
   const environmentLabel = config.environmentName;
 
   function updateCondition(
@@ -151,7 +152,7 @@ export function FlagTargeting({
   }
 
   async function handlePublish() {
-    if (pending) return;
+    if (archived || pending) return;
     setPending(true);
     setPublished(false);
     setError(null);
@@ -258,6 +259,13 @@ export function FlagTargeting({
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.72fr)]">
       <div className="space-y-4">
+        {archived ? (
+          <p className="text-muted-foreground rounded-lg border bg-muted/50 px-3 py-2 text-[11px] leading-4">
+            This flag is archived. Every environment serves its off variation, so
+            targeting cannot be changed. Restore the flag to edit it.
+          </p>
+        ) : null}
+
         {approval}
 
         <section className="bg-card rounded-lg border p-4">
@@ -306,6 +314,7 @@ export function FlagTargeting({
                       </span>
                       <Select
                         value={rule.variation}
+                        disabled={archived}
                         onValueChange={(value) =>
                           updateRule(rule.id, { variation: value })
                         }
@@ -345,6 +354,7 @@ export function FlagTargeting({
                         </span>
                         <Select
                           value={condition.operator}
+                          disabled={archived}
                           onValueChange={(value) =>
                             updateCondition(rule.id, condition.id, {
                               operator: value as TargetingOperator,
@@ -385,12 +395,13 @@ export function FlagTargeting({
                     </span>
                     <button
                       type="button"
+                      disabled={archived}
                       onClick={() =>
                         setRules((previous) =>
                           previous.filter((item) => item.id !== rule.id),
                         )
                       }
-                      className="text-muted-foreground hover:text-danger-ink inline-flex items-center gap-1 text-[10px] underline-offset-2 hover:underline"
+                      className="text-muted-foreground hover:text-danger-ink inline-flex items-center gap-1 text-[10px] underline-offset-2 hover:underline disabled:opacity-60"
                     >
                       <XIcon aria-hidden="true" className="size-3" />
                       Remove rule
@@ -403,8 +414,9 @@ export function FlagTargeting({
 
           <button
             type="button"
+            disabled={archived}
             onClick={addRule}
-            className="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-[11px] underline-offset-2 hover:underline"
+            className="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-[11px] underline-offset-2 hover:underline disabled:opacity-60"
           >
             <PlusIcon aria-hidden="true" className="size-3.5" />
             Add targeting rule
@@ -432,6 +444,7 @@ export function FlagTargeting({
                   <div className="flex items-center gap-2">
                     <Select
                       value={target.variationKey}
+                      disabled={archived}
                       onValueChange={(value) =>
                         setTargets((previous) =>
                           previous.map((item) =>
@@ -459,6 +472,7 @@ export function FlagTargeting({
                     </Select>
                     <button
                       type="button"
+                      disabled={archived}
                       onClick={() =>
                         setTargets((previous) =>
                           previous.filter(
@@ -466,7 +480,7 @@ export function FlagTargeting({
                           ),
                         )
                       }
-                      className="text-muted-foreground hover:text-danger-ink text-[10px] underline-offset-2 hover:underline"
+                      className="text-muted-foreground hover:text-danger-ink text-[10px] underline-offset-2 hover:underline disabled:opacity-60"
                     >
                       Remove
                     </button>
@@ -498,7 +512,11 @@ export function FlagTargeting({
 
           <div className="mt-3 space-y-2">
             <Label htmlFor="default-serving">Serve variation</Label>
-            <Select value={serveDefault} onValueChange={setServeDefault}>
+            <Select
+              value={serveDefault}
+              onValueChange={setServeDefault}
+              disabled={archived}
+            >
               <SelectTrigger
                 id="default-serving"
                 className="h-8 w-full text-[12px]"
@@ -538,7 +556,7 @@ export function FlagTargeting({
           <Button
             size="sm"
             className="mt-3 w-full gap-1.5 text-[11px]"
-            disabled={pending}
+            disabled={archived || pending}
             onClick={handlePublish}
           >
             {pending ? (

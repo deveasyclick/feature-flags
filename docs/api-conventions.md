@@ -79,6 +79,7 @@ module router. Below, `…` stands for `/v1/projects/:projectKey/flags/:flagKey`
 | `/` | GET | `/v1/projects/:projectKey/flags/:flagKey` | Read the flag: identity, per-environment summaries and variations. |
 | `/` | PATCH | `/v1/projects/:projectKey/flags/:flagKey` | Update the flag's identity. |
 | `/` | DELETE | `/v1/projects/:projectKey/flags/:flagKey` | Archive the flag in every environment. |
+| `/` | POST | `/v1/projects/:projectKey/flags/:flagKey/unarchive` | Restore an archived flag. |
 | `/` | GET | `…/variations` | Read the flag's variations. |
 | `/` | POST | `…/variations` | Add a variation; 201. |
 | `/` | PATCH | `…/variations/:variationKey` | Edit a variation's name, value or description; the key is immutable. |

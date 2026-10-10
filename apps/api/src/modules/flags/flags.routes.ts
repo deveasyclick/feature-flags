@@ -35,6 +35,7 @@ export function createFlagsRoutes({
   routes.get(flagPath, (c) => controller.get(c));
   routes.patch(flagPath, (c) => controller.update(c));
   routes.delete(flagPath, (c) => controller.archive(c));
+  routes.post(`${flagPath}/unarchive`, (c) => controller.unarchive(c));
 
   routes.get(`${flagPath}/variations`, (c) => controller.getVariations(c));
   routes.post(`${flagPath}/variations`, (c) => controller.addVariation(c));

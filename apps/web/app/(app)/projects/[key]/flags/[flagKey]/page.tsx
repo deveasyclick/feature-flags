@@ -118,6 +118,7 @@ export default async function FlagDetailPage(props: FlagPageProps) {
           projectKey={projectKey}
           flagKey={flag.key}
           type={flag.type}
+          archived={flag.status === "archived"}
           variations={flag.variations}
           protectedEnvironment={protectedEnvironment}
         />
@@ -152,6 +153,7 @@ export default async function FlagDetailPage(props: FlagPageProps) {
               flagKey={flag.key}
               request={pendingApproval}
               protectedEnvironment={protectedEnvironment}
+              archived={flag.status === "archived"}
             />
           }
         />
@@ -238,6 +240,7 @@ export default async function FlagDetailPage(props: FlagPageProps) {
             flagKey={flag.key}
             request={pendingApproval}
             protectedEnvironment={protectedEnvironment}
+            archived={flag.status === "archived"}
           />
         }
       />

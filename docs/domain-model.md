@@ -118,11 +118,13 @@ environment-scoped key until a new one is created.
 ### Flag
 
 `flags.status` defaults to `active` and is project-wide: archiving sets it to `archived`
-for every environment at once, and there is no per-environment archive or unarchive route.
-`enabled` is the per-environment switch and is a column of `flag_environment_configs`, so a
-project-active flag can be turned off in Production alone. Evaluation treats an archived
-flag in every environment as that environment's off variation: the engine returns the off
-variation with the `flag_archived` reason before it considers enablement or targeting.
+for every environment at once, and there is no per-environment archive. `enabled` is the
+per-environment switch and is a column of `flag_environment_configs`, so a project-active
+flag can be turned off in Production alone. Evaluation treats an archived flag in every
+environment as that environment's off variation: the engine returns the off variation with
+the `flag_archived` reason before it considers enablement or targeting. Because that makes
+the configuration moot, an identity update is the only write an archived flag accepts;
+configuration, rules, targets and variations all answer 409 until it is unarchived.
 Archiving deletes nothing — variations, each environment's configuration, rules and
 individual targets stay.
 
@@ -237,7 +239,7 @@ are absent, so a stored row always has all nine of these columns plus `created_a
 workspace-level event leaves `projectId` and `environmentId` null.
 
 The action names actually written, derived from the `action` values passed to
-`writeAuditLog` across `apps/api/src` — 26 in total:
+`writeAuditLog` across `apps/api/src` — 27 in total:
 
 ```text
 project.created            project.updated
@@ -245,8 +247,9 @@ environment.created        environment.updated
 environment.archived       environment.unarchived
 flag.created               flag.updated
 flag.enabled               flag.disabled
-flag.archived              flag.variation.added
-flag.variation.updated     flag.variation.removed
+flag.archived              flag.unarchived
+flag.variation.added       flag.variation.updated
+flag.variation.removed
 rollout.updated
 segment.created            segment.updated
 segment.archived
@@ -283,9 +286,8 @@ the notification switches in `user_preferences` round-trip through the preferenc
 endpoints, and nothing consumes them to send a notification;
 `notify_on_rollout_complete` is stored and is neither read nor written.
 
-Not built: project delete or archive (`project.deleted` is declared but unwritten); flag
-unarchive; segment unarchive; API key rotation (`api_key.rotated` is declared but
-unwritten). No foreign key constrains `project.default_environment_id`.
+Not built: project delete or archive (`project.deleted` is declared but unwritten); segment
+unarchive; API key rotation (`api_key.rotated` is declared but unwritten). No foreign key constrains `project.default_environment_id`.
 
 ## Where it lives
 
@@ -313,7 +315,7 @@ unwritten). No foreign key constrains `project.default_environment_id`.
 - `apps/api/src/shared/types/db.ts` — the `Transaction` type the audit helper is given.
 - `apps/api/src/modules/projects/projects.service.ts` — project creation and update, and the starter environments.
 - `apps/api/src/modules/environments/environments.service.ts` — the starter environments of a new project, environment archive, unarchive and the last-active-environment rule.
-- `apps/api/src/modules/flags/flags.service.ts` — flag creation, identity updates, archive, variations and the per-environment publish.
+- `apps/api/src/modules/flags/flags.service.ts` — flag creation, identity updates, archive and unarchive, variations and the per-environment publish.
 - `apps/api/src/modules/segments/segments.service.ts` — segment creation, update and archive.
 - `packages/engine/src/evaluate.ts` — where an archived flag resolves to the off variation.
 - `packages/contracts/src/audit-log.ts` — the declared `AUDIT_ACTIONS` list, including two names nothing writes.

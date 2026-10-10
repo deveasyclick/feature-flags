@@ -106,6 +106,18 @@ export class FlagsController {
     );
   }
 
+  async unarchive(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+
+    return c.json(
+      await this.service.unarchive(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+      ),
+    );
+  }
+
   async getVariations(c: Context<SessionEnv>): Promise<Response> {
     const actor = await this.actor(c);
 

@@ -66,13 +66,14 @@ export function FlagConfiguration({
   const controllerRef = useRef<AbortController | null>(null);
   const router = useRouter();
 
+  const archived = flag.status === "archived";
   const environmentLabel = config.environmentName;
   const servingName =
     flag.variations.find((variation) => variation.key === serving)?.name ??
     serving;
 
   async function handlePublish() {
-    if (pending) return;
+    if (archived || pending) return;
     setPending(true);
     setPublished(null);
     setError(null);
@@ -140,6 +141,13 @@ export function FlagConfiguration({
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.72fr)]">
       <div className="space-y-4">
+        {archived ? (
+          <p className="text-muted-foreground rounded-lg border bg-muted/50 px-3 py-2 text-[11px] leading-4">
+            This flag is archived. Every environment serves its off variation, so
+            this configuration cannot be changed. Restore the flag to edit it.
+          </p>
+        ) : null}
+
         {approval}
 
         <section className="bg-card rounded-lg border p-4">
@@ -156,12 +164,17 @@ export function FlagConfiguration({
               checked={enabled}
               onCheckedChange={setEnabled}
               aria-label={`Serve ${flagKey} in ${environmentLabel}`}
+              disabled={archived}
             />
           </div>
 
           <div className="mt-4 space-y-2">
             <Label htmlFor="flag-serving">Default value</Label>
-            <Select value={serving} onValueChange={setServing}>
+            <Select
+              value={serving}
+              onValueChange={setServing}
+              disabled={archived}
+            >
               <SelectTrigger
                 id="flag-serving"
                 className="h-8 w-full text-[12px]"
@@ -185,7 +198,11 @@ export function FlagConfiguration({
 
           <div className="mt-4 space-y-2">
             <Label htmlFor="flag-off-variation">Off value</Label>
-            <Select value={offVariation} onValueChange={setOffVariation}>
+            <Select
+              value={offVariation}
+              onValueChange={setOffVariation}
+              disabled={archived}
+            >
               <SelectTrigger
                 id="flag-off-variation"
                 className="h-8 w-full text-[12px]"
@@ -223,6 +240,7 @@ export function FlagConfiguration({
               step={1}
               value={percentage}
               aria-label={`${flagKey} rollout percentage`}
+              disabled={archived}
               onChange={(event) => setPercentage(Number(event.target.value))}
               className="accent-primary bg-muted h-1.5 w-full cursor-pointer rounded-full"
             />
@@ -276,7 +294,7 @@ export function FlagConfiguration({
             <Button
               size="sm"
               className="gap-1.5 text-[11px]"
-              disabled={pending}
+              disabled={archived || pending}
               onClick={handlePublish}
             >
               {pending ? (

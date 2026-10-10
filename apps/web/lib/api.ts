@@ -492,6 +492,14 @@ export const flags = {
       options,
     ),
 
+  /** The reverse of `archive`. It does not switch the flag on again. */
+  unarchive: (projectKey: string, flagKey: string, options?: RequestOptions) =>
+    request<{ key: string; status: string }>(
+      "POST",
+      `${flagPath(projectKey, flagKey)}/unarchive`,
+      options,
+    ),
+
   /** The workspace-wide screen; flag keys collide across projects. */
   listWorkspace: (
     query: Partial<WorkspaceFlagListQuery> = {},

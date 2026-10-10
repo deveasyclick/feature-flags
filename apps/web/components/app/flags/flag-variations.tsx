@@ -86,6 +86,7 @@ export function FlagVariations({
   projectKey,
   flagKey,
   type,
+  archived,
   variations: initialVariations,
   protectedEnvironment,
 }: {
@@ -93,6 +94,7 @@ export function FlagVariations({
   readonly flagKey: string;
   /** The flag's declared type; every value has to be one of these. */
   readonly type: FlagType;
+  readonly archived: boolean;
   readonly variations: FlagVariation[];
   /** A protected environment has to approve its own configuration, not the values. */
   readonly protectedEnvironment: boolean;
@@ -156,7 +158,7 @@ export function FlagVariations({
   }
 
   async function addVariation() {
-    if (adding) return;
+    if (archived || adding) return;
 
     // The value is checked as the text the field holds: while it does not parse,
     // the stored value is the one that parsed a keystroke ago, and writing that
@@ -230,7 +232,7 @@ export function FlagVariations({
   }
 
   async function saveVariation(row: VariationRow) {
-    if (pendingKey) return;
+    if (archived || pendingKey) return;
     setPendingKey(row.key);
     setSavedKey(null);
     setError(null);
@@ -280,7 +282,7 @@ export function FlagVariations({
   }
 
   async function removeVariation(row: VariationRow) {
-    if (pendingKey) return;
+    if (archived || pendingKey) return;
     setPendingKey(row.key);
     setSavedKey(null);
     setError(null);
@@ -313,6 +315,13 @@ export function FlagVariations({
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.72fr)]">
       <div className="space-y-4">
+        {archived ? (
+          <p className="text-muted-foreground rounded-lg border bg-muted/50 px-3 py-2 text-[11px] leading-4">
+            This flag is archived. Every environment serves its off variation, so
+            variations cannot be changed. Restore the flag to edit it.
+          </p>
+        ) : null}
+
         <section className="bg-card rounded-lg border p-4">
           <h2 className="text-[13px] font-medium">Variations</h2>
           <p className="text-muted-foreground mt-1 text-[11px]">
@@ -337,7 +346,7 @@ export function FlagVariations({
                     </span>
                     <button
                       type="button"
-                      disabled={pendingKey !== null}
+                      disabled={archived || pendingKey !== null}
                       onClick={() => removeVariation(row)}
                       className="text-muted-foreground hover:text-danger-ink inline-flex items-center gap-1 text-[10px] underline-offset-2 hover:underline disabled:opacity-60"
                     >
@@ -364,6 +373,7 @@ export function FlagVariations({
                       <Input
                         id={`variation-name-${row.key}`}
                         className="h-8 text-[12px]"
+                        disabled={archived}
                         value={row.name}
                         onChange={(event) =>
                           patchRow(row.key, { name: event.target.value })
@@ -381,6 +391,7 @@ export function FlagVariations({
                       <VariationValueInput
                         id={`variation-value-${row.key}`}
                         type={type}
+                        disabled={archived}
                         text={valueTexts[row.key] ?? savedText(row)}
                         onChange={(text) => changeRowValueText(row.key, text)}
                       />
@@ -398,6 +409,7 @@ export function FlagVariations({
                       id={`variation-description-${row.key}`}
                       rows={2}
                       maxLength={280}
+                      disabled={archived}
                       placeholder="What this value means, and when it is served."
                       className="text-[12px]"
                       value={row.description ?? ""}
@@ -421,6 +433,7 @@ export function FlagVariations({
                       variant="outline"
                       className="gap-1.5 text-[11px]"
                       disabled={
+                        archived ||
                         pendingKey !== null ||
                         !changed(row) ||
                         row.name.trim() === ""
@@ -468,6 +481,7 @@ export function FlagVariations({
               <Input
                 id="new-variation-key"
                 className="h-8 font-mono text-[12px]"
+                disabled={archived}
                 placeholder="treatment"
                 value={draft.key}
                 onChange={(event) =>
@@ -486,6 +500,7 @@ export function FlagVariations({
               <Input
                 id="new-variation-name"
                 className="h-8 text-[12px]"
+                disabled={archived}
                 placeholder="Treatment"
                 value={draft.name}
                 onChange={(event) =>
@@ -504,6 +519,7 @@ export function FlagVariations({
               <VariationValueInput
                 id="new-variation-value"
                 type={type}
+                disabled={archived}
                 text={draftText}
                 error={draftValueError}
                 onChange={changeDraftValueText}
@@ -517,6 +533,7 @@ export function FlagVariations({
               <Textarea
                 id="new-variation-description"
                 rows={2}
+                disabled={archived}
                 maxLength={280}
                 placeholder="Optional. What this value means."
                 className="text-[12px]"
@@ -533,6 +550,7 @@ export function FlagVariations({
             <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
+                disabled={archived}
                 onClick={() =>
                   setDraft((previous) => ({
                     ...previous,
@@ -541,7 +559,7 @@ export function FlagVariations({
                     description: "",
                   }))
                 }
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[11px]"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[11px] disabled:opacity-60"
               >
                 <XIcon aria-hidden="true" className="size-3.5" />
                 Clear
@@ -549,7 +567,7 @@ export function FlagVariations({
               <Button
                 size="sm"
                 className="gap-1.5 text-[11px]"
-                disabled={adding}
+                disabled={archived || adding}
                 onClick={addVariation}
               >
                 {adding ? (

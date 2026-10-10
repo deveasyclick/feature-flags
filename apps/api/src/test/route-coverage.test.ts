@@ -300,6 +300,7 @@ describe("route coverage: the flag route surface", () => {
       { method: "GET", path: `${flag}/dependencies`, status: 200 },
       { method: "DELETE", path: `${flag}/variations/maybe`, status: 200 },
       { method: "DELETE", path: flag, status: 200 },
+      { method: "POST", path: `${flag}/unarchive`, status: 200 },
     ];
 
     for (const route of routes) {
@@ -651,5 +652,92 @@ describe("route coverage: defensive reads", () => {
       sessionTimeout: "24h",
       auditRetentionDays: 90,
     });
+  });
+});
+
+
+describe("route coverage: archived flags", () => {
+  async function archive(underTest: Fixture, key: string) {
+    return app.request(`/v1/projects/${underTest.projectKey}/flags/${key}`, {
+      method: "DELETE",
+      headers: headers(underTest.session),
+    });
+  }
+
+  async function unarchive(underTest: Fixture, key: string) {
+    return app.request(
+      `/v1/projects/${underTest.projectKey}/flags/${key}/unarchive`,
+      { method: "POST", headers: headers(underTest.session) },
+    );
+  }
+
+  it("freezes what the flag serves, then reopens it on restore", async () => {
+    const underTest = await fixture();
+    await createFlag(underTest, "checkout-v2");
+
+    const flag = `/v1/projects/${underTest.projectKey}/flags/checkout-v2`;
+    const config = `${flag}/environments/development`;
+
+    expect((await archive(underTest, "checkout-v2")).status).toBe(200);
+
+    const frozen = [
+      {
+        method: "PATCH",
+        path: config,
+        body: {
+          enabled: true,
+          offVariation: "off",
+          defaultVariation: "on",
+          rolloutPercentage: 100,
+          bucketBy: "userId",
+        },
+      },
+      { method: "PATCH", path: `${config}/enabled`, body: { enabled: true } },
+      { method: "PUT", path: `${config}/rules`, body: { rules: [] } },
+      { method: "PUT", path: `${config}/targets`, body: { targets: [] } },
+      {
+        method: "POST",
+        path: `${flag}/variations`,
+        body: { key: "maybe", name: "Maybe", value: true },
+      },
+      { method: "PATCH", path: `${flag}/variations/on`, body: { name: "Later" } },
+      { method: "DELETE", path: `${flag}/variations/off`, body: {} },
+    ];
+
+    for (const write of frozen) {
+      const response = await app.request(write.path, {
+        method: write.method,
+        headers: headers(underTest.session),
+        body: JSON.stringify(write.body),
+      });
+
+      expect(response.status, `${write.method} ${write.path}`).toBe(409);
+    }
+
+    // Reading is untouched, the identity is still editable, and a second
+    // archive is refused rather than writing a second audit row.
+    const read = await app.request(config, {
+      headers: { cookie: underTest.session.cookie },
+    });
+    expect(read.status).toBe(200);
+
+    const renamed = await app.request(flag, {
+      method: "PATCH",
+      headers: headers(underTest.session),
+      body: JSON.stringify({ name: "Checkout v2 (archived)" }),
+    });
+    expect(renamed.status).toBe(200);
+
+    expect((await archive(underTest, "checkout-v2")).status).toBe(409);
+
+    expect((await unarchive(underTest, "checkout-v2")).status).toBe(200);
+    expect((await unarchive(underTest, "checkout-v2")).status).toBe(409);
+
+    const reopened = await app.request(`${config}/enabled`, {
+      method: "PATCH",
+      headers: headers(underTest.session),
+      body: JSON.stringify({ enabled: true }),
+    });
+    expect(reopened.status).toBe(200);
   });
 });

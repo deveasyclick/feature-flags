@@ -261,9 +261,18 @@ still be turned off in Production alone. Everything stays: the row, its variatio
 environment's configuration, rules, targets and versions all remain and no cascade delete runs.
 An archived flag evaluates in every environment as that environment's off variation with the
 reason `flag_archived` (`docs/evaluation.md`). Archived flags appear in list responses unless the
-caller filters by `status`, nothing refuses a write to an archived flag, and a second archive
-behaves exactly like the first. There is no hard delete: no route or repository method removes a
-flag row.
+caller filters by `status`. Because the configuration no longer decides anything, every write
+that would change what the flag serves — configuration, rules, targets and variations — answers
+409 while it is archived, and so does a second archive. Its identity stays editable, so a flag
+can still be annotated after it is archived.
+
+`POST …/unarchive` reverses it: `status` returns to `active`, the response is
+`{ key, status: "active" }`, and the audit action is `flag.unarchived`. Restoring is not a
+rollback of anything else — an archive writes `status` alone, so every environment still holds
+the `enabled` and rollout it had, and a restored flag resumes exactly the state it was switched
+to before it was archived. Unarchiving a flag that is not archived answers 409.
+
+There is no hard delete: no route or repository method removes a flag row.
 
 ## Creating an environment from a copy source
 

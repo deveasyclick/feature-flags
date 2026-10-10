@@ -71,7 +71,7 @@ The minimum role is the argument each call site passes to the gate.
 | Read a project                                                                                            | `viewer`                                     |
 | Read flags, one flag, one environment's configuration, variations, rules, targets, dependencies, versions | `viewer`                                     |
 | Create or update a flag; add, edit or remove variations; publish configuration; replace rules/targets     | `engineer`                                   |
-| Archive a flag                                                                                            | `engineer`                                   |
+| Archive or unarchive a flag                                                                               | `engineer`                                   |
 | List or read segments                                                                                     | `viewer`                                     |
 | Create, update or archive a segment                                                                       | `engineer`                                   |
 | List or read environments                                                                                 | `viewer`                                     |

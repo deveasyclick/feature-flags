@@ -9,7 +9,10 @@ import type {
   FlagEnvironmentSummary,
   FlagSummary,
 } from "@dariise/contracts";
-import { ArchiveFlagDialog } from "@/components/app/flags/archive-flag-dialog";
+import {
+  ArchiveFlagDialog,
+  RestoreFlagDialog,
+} from "@/components/app/flags/archive-flag-dialog";
 import { EditFlagDialog } from "@/components/app/flags/edit-flag-dialog";
 import { flagTabHref } from "@/components/app/flags/flag-tabs";
 import { flagState } from "@/components/app/flags/flag-state-pill";
@@ -40,9 +43,11 @@ import { formatRelativeTime } from "@/lib/format";
 
 type StatusView = "active" | "rollout" | "disabled" | "archived";
 
-type StatusFilter = "all" | StatusView;
+/** `current` is the default view: everything the project still serves. */
+type StatusFilter = "current" | "all" | StatusView;
 
 const statusFilters: Array<{ value: StatusFilter; label: string }> = [
+  { value: "current", label: "Current" },
   { value: "all", label: "All statuses" },
   { value: "active", label: "Active" },
   { value: "rollout", label: "Rollout" },
@@ -131,9 +136,10 @@ export function FlagsTable({
   readonly protectedEnvironment?: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
+  const [status, setStatus] = useState<StatusFilter>("current");
   const [editing, setEditing] = useState<FlagSummary | null>(null);
   const [archiving, setArchiving] = useState<FlagSummary | null>(null);
+  const [restoring, setRestoring] = useState<FlagSummary | null>(null);
   /** The row a toggle is in flight for, so its switch can be disabled. */
   const [toggling, setToggling] = useState<string | null>(null);
   /** Where a toggle has already moved a row, before the server re-render lands. */
@@ -158,7 +164,9 @@ export function FlagsTable({
         overrides[flag.key] ?? null,
       );
 
-      if (status !== "all" && current !== status) {
+      if (status === "current") {
+        if (current === "archived") return false;
+      } else if (status !== "all" && current !== status) {
         return false;
       }
       if (!needle) return true;
@@ -268,7 +276,7 @@ export function FlagsTable({
             <Button variant="outline" size="sm" className="gap-1.5 text-[11px]">
               <FilterIcon aria-hidden="true" className="size-3.5" />
               Filters
-              {status !== "all" ? (
+              {status !== "current" ? (
                 <span className="bg-primary text-primary-foreground ml-0.5 rounded-full px-1.5 text-[10px]">
                   1
                 </span>
@@ -445,15 +453,24 @@ export function FlagsTable({
                           <DropdownMenuItem asChild>
                             <Link href={historyHref}>View history</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            disabled={flag.status === "archived"}
-                            onSelect={() => {
-                              setArchiving(flag);
-                            }}
-                          >
-                            Archive
-                          </DropdownMenuItem>
+                          {flag.status === "archived" ? (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setRestoring(flag);
+                              }}
+                            >
+                              Restore
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => {
+                                setArchiving(flag);
+                              }}
+                            >
+                              Archive
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -477,6 +494,13 @@ export function FlagsTable({
         flag={archiving}
         onClose={() => {
           setArchiving(null);
+        }}
+      />
+      <RestoreFlagDialog
+        projectKey={projectKey}
+        flag={restoring}
+        onClose={() => {
+          setRestoring(null);
         }}
       />
     </section>
