@@ -31,6 +31,7 @@ import type {
   PaginationQuery,
   Project,
   ProjectMember,
+  PublishTargetingInput,
   ReplaceIndividualTargetsInput,
   ReplaceTargetingRulesInput,
   SegmentDetail,
@@ -662,6 +663,23 @@ export const flags = {
     request<FlagIndividualTarget[]>(
       "PUT",
       `${flagConfigPath(projectKey, flagKey, environmentKey)}/targets`,
+      { ...options, body: input },
+    ),
+
+  /**
+   * Rules, targets and the served default as one write, because the screen edits
+   * all three together and three writes leave an environment half published.
+   */
+  publishTargeting: (
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    input: PublishTargetingInput,
+    options?: RequestOptions,
+  ) =>
+    request<FlagEnvironmentConfig>(
+      "PUT",
+      `${flagConfigPath(projectKey, flagKey, environmentKey)}/targeting`,
       { ...options, body: input },
     ),
 

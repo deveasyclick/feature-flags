@@ -25,7 +25,7 @@ import {
 } from "@/components/app/flags/flag-tabs";
 import { FlagTargeting } from "@/components/app/flags/flag-targeting";
 import { FlagVariations } from "@/components/app/flags/flag-variations";
-import { flags as flagsApi } from "@/lib/api";
+import { flags as flagsApi, segments as segmentsApi } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -127,10 +127,12 @@ export default async function FlagDetailPage(props: FlagPageProps) {
   }
 
   if (tab === "targeting") {
-    const [rules, targets, pendingApproval] = await Promise.all([
+    const [rules, targets, pendingApproval, segments] = await Promise.all([
       flagsApi.rules(projectKey, flag.key, environmentKey),
       flagsApi.targets(projectKey, flag.key, environmentKey),
       loadPendingChangeRequest(projectKey, flag.key, environmentKey),
+      // A rule may attach a segment, so the screen carries the project's own.
+      segmentsApi.list(projectKey, { limit: 100 }),
     ]);
 
     return (
@@ -145,6 +147,7 @@ export default async function FlagDetailPage(props: FlagPageProps) {
           config={config}
           rules={rules}
           targets={targets}
+          segments={segments.data}
           updatedLabel={formatRelativeTime(flag.updatedAt, now)}
           protectedEnvironment={protectedEnvironment}
           approval={
