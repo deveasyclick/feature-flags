@@ -9,6 +9,7 @@ import {
   FlagMetadata,
 } from "@/components/app/flags/flag-config-panels";
 import { FlagDependencies } from "@/components/app/flags/flag-dependencies";
+import { FlagEvaluationPreview } from "@/components/app/flags/flag-evaluation-preview";
 import { FlagDetailHeader } from "@/components/app/flags/flag-headers";
 import { FlagHistory } from "@/components/app/flags/flag-history";
 import {
@@ -159,6 +160,22 @@ export default async function FlagDetailPage(props: FlagPageProps) {
               archived={flag.status === "archived"}
             />
           }
+        />
+      </>
+    );
+  }
+
+  if (tab === "preview") {
+    return (
+      <>
+        {header}
+        {tabs}
+        <FlagEvaluationPreview
+          key={pageKey}
+          projectKey={projectKey}
+          flag={flag}
+          config={config}
+          rules={config.rules}
         />
       </>
     );

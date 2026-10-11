@@ -133,7 +133,7 @@ An example response:
 
 The controller parses the body with `evaluateRequestSchema.safeParse`; malformed JSON and schema failures both answer 400 with the first issue's message, in the envelope described in `docs/api-conventions.md`.
 
-The endpoint currently requires a session. `evaluation.routes.ts` applies the session middleware to every route and the controller calls `requireWorkspace(c)`, which throws `unauthorized` when there is no session. That is deliberate: `/v1/evaluate` is the dashboard's explainer, and the SDK-facing path is `GET /v1/sdk/config`, which takes a read-only runtime key and lets the SDK decide locally (`docs/sdk.md`). The evaluation is scoped to the workspace taken from that session, not from the body; the tenancy rules are in `docs/architecture.md §2`.
+The endpoint currently requires a session. `evaluation.routes.ts` applies the session middleware to every route and the controller calls `requireWorkspace(c)`, which throws `unauthorized` when there is no session. That is deliberate: `/v1/evaluate` is the dashboard's explainer, and the SDK-facing path is `GET /v1/sdk/config`, which takes a read-only runtime key and lets the SDK decide locally (`docs/sdk.md`). The flag detail's Preview tab is the dashboard caller: it sends the flag, the environment and a subject, and renders the variation, the reason and the rule that served. The response carries no per-condition result, so that tab restates the matched rule's stored requirements instead of inferring which condition passed. The evaluation is scoped to the workspace taken from that session, not from the body; the tenancy rules are in `docs/architecture.md §2`.
 
 ## How rows are loaded
 

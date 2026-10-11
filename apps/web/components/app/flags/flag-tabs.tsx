@@ -5,6 +5,7 @@ export const FLAG_TABS = [
   { value: "configuration", label: "Configuration" },
   { value: "variations", label: "Variations" },
   { value: "targeting", label: "Targeting" },
+  { value: "preview", label: "Preview" },
   { value: "history", label: "History" },
   { value: "dependencies", label: "Dependencies" },
 ] as const;
