@@ -16,6 +16,7 @@ import {
   type FlagType,
   type FlagVariation,
   type FlagVersion,
+  type PublishTargetingInput,
   type ReplaceIndividualTargetsInput,
   type ReplaceTargetingRulesInput,
   type SetFlagEnabledInput,
@@ -768,6 +769,84 @@ export class FlagsService {
     return toIndividualTargets(
       await this.repository.listTargets(scope.flag.id, scope.environment.id),
     );
+  }
+
+  /**
+   * Rules, targets and the configuration the same screen edits, in one
+   * transaction: the environment is never left half published, and the history
+   * gains one version rather than one per collection.
+   */
+  async publishTargeting(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    input: PublishTargetingInput,
+  ): Promise<FlagEnvironmentConfig> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "engineer",
+    );
+
+    this.assertActive(scope.flag);
+    this.assertPublishable(scope.environment);
+    await this.validateRules(scope, { rules: input.rules });
+    await this.validateTargets(scope, { targets: input.targets });
+
+    const config = input.config;
+
+    await db.transaction(async (tx) => {
+      await this.writeEnvironmentChange(
+        tx,
+        context,
+        scope,
+        "flag.updated",
+        {
+          rules: input.rules,
+          targets: input.targets,
+          ...(config === undefined
+            ? {}
+            : {
+                enabled: config.enabled,
+                defaultVariation: config.defaultVariation,
+                rolloutPercentage: config.rolloutPercentage,
+              }),
+        },
+        async () => {
+          await this.repository.replaceRules(
+            tx,
+            scope.flag.id,
+            scope.environment.id,
+            input.rules,
+          );
+          await this.repository.replaceTargets(
+            tx,
+            scope.flag.id,
+            scope.environment.id,
+            input.targets,
+          );
+
+          if (config !== undefined) {
+            await this.repository.updateConfig(tx, scope.config.id, config);
+          }
+        },
+        `Targeting published to ${scope.environment.name}`,
+        {
+          environment: scope.environment.key,
+          rules: input.rules,
+          targets: input.targets,
+          ...(config === undefined ? {} : { serve: config.defaultVariation }),
+        },
+      );
+    });
+
+    return this.loadEnvironmentConfig({
+      ...scope,
+      config: await this.requireConfig(scope.flag.id, scope.environment.id),
+    });
   }
 
   /** Dependencies are project-scoped: an edge links two flag keys, not two configurations. */

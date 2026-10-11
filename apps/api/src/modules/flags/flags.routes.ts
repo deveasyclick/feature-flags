@@ -58,6 +58,8 @@ export function createFlagsRoutes({
   routes.get(`${configPath}/targets`, (c) => controller.getTargets(c));
   routes.put(`${configPath}/targets`, (c) => controller.replaceTargets(c));
 
+  routes.put(`${configPath}/targeting`, (c) => controller.publishTargeting(c));
+
   routes.get(`${configPath}/versions`, (c) => controller.listVersions(c));
 
   routes.get(`${flagPath}/dependencies`, (c) => controller.getDependencies(c));

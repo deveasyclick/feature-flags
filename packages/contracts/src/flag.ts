@@ -478,6 +478,20 @@ export type ReplaceIndividualTargetsInput = z.infer<
   typeof replaceIndividualTargetsSchema
 >;
 
+/**
+ * One environment's whole targeting state, in one write: three separate writes
+ * publish a half-applied change when one of them fails, and the targeting
+ * screen edits rules, targets and the served default together. `config` is
+ * optional for a screen that did not touch the default variation.
+ */
+export const publishTargetingSchema = z.object({
+  rules: z.array(targetingRuleInputSchema),
+  targets: z.array(flagIndividualTargetSchema),
+  config: updateFlagConfigSchema.optional(),
+});
+
+export type PublishTargetingInput = z.infer<typeof publishTargetingSchema>;
+
 export const flagListQuerySchema = paginationQuerySchema.extend({
   /** Case-insensitive match on key or name. */
   search: z.string().trim().optional(),

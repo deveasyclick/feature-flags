@@ -3,6 +3,7 @@ import {
   createFlagVariationSchema,
   flagListQuerySchema,
   paginationQuerySchema,
+  publishTargetingSchema,
   replaceIndividualTargetsSchema,
   replaceTargetingRulesSchema,
   setFlagEnabledSchema,
@@ -314,6 +315,25 @@ export class FlagsController {
 
     return c.json(
       await this.service.replaceTargets(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        this.param(c, "environmentKey"),
+        parsed.data,
+      ),
+    );
+  }
+
+  async publishTargeting(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = publishTargetingSchema.safeParse(await this.body(c));
+
+    if (!parsed.success) {
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    }
+
+    return c.json(
+      await this.service.publishTargeting(
         actor,
         this.param(c, "projectKey"),
         this.param(c, "flagKey"),

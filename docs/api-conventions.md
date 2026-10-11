@@ -90,6 +90,7 @@ module router. Below, `…` stands for `/v1/projects/:projectKey/flags/:flagKey`
 | `/` | PUT | `…/environments/:environmentKey/rules` | Replace the targeting rules. |
 | `/` | GET | `…/environments/:environmentKey/targets` | Read the individual targets. |
 | `/` | PUT | `…/environments/:environmentKey/targets` | Replace the individual targets. |
+| `/` | PUT | `…/environments/:environmentKey/targeting` | Publish the rules, the individual targets and the configuration together, in one transaction and one version. |
 | `/` | GET | `…/environments/:environmentKey/versions` | That environment's configuration history; paginated. |
 | `/` | GET | `…/dependencies` | Read the flag's dependencies. |
 | `/v1/projects` | GET | `/v1/projects` | List projects; the only filter is `search`. |

@@ -109,6 +109,7 @@ the canonical detail.
 | `PUT`    | `FLAG/environments/:environmentKey/rules`               | Replace the whole targeting rule set.                                                                                                           | `engineer`                 |
 | `GET`    | `FLAG/environments/:environmentKey/targets`             | Read the individual targets.                                                                                                                    | `viewer`                   |
 | `PUT`    | `FLAG/environments/:environmentKey/targets`             | Replace the whole individual target set.                                                                                                        | `engineer`                 |
+| `PUT`    | `FLAG/environments/:environmentKey/targeting`           | Publish the rules, the individual targets and the configuration in one transaction.                                                             | `engineer`                 |
 | `GET`    | `FLAG/environments/:environmentKey/versions`            | Read that environment's configuration history, paginated.                                                                                       | `viewer`                   |
 | `GET`    | `FLAG/dependencies`                                     | Read the project-scoped dependency graph around the flag.                                                                                       | `viewer`                   |
 
@@ -164,6 +165,11 @@ with their conditions. The matching `PUT` replaces the whole set: the existing r
 conditions are deleted and the submitted array is inserted in order, with priority as the array
 index and each condition's priority as its index in the rule. The publish is refused for an
 unknown variation or an unknown segment.
+
+`PUT FLAG/environments/:environmentKey/targeting` publishes the same rule set, the individual
+targets and, when the caller supplies it, the environment's configuration as one transaction, and
+answers the environment's whole configuration. The dashboard's targeting tab uses it, so what the
+reader changed on one screen lands as one write, one audit row and one version.
 
 ## Individual targets
 
@@ -223,6 +229,7 @@ History is per environment: each environment's history starts at its own version
 | Flag created            | `Flag created`                                       | environment, key, type, tags            |
 | Configuration published | `Configuration published to <environment name>`      | environment, enabled, serve, variations |
 | Rules published         | `Targeting rules published to <environment name>`    | environment, rules                      |
+| Targeting published     | `Targeting published to <environment name>`          | environment, rules, targets             |
 | Targets published       | `Individual targets published to <environment name>` | environment, targets                    |
 | Configurations copied   | `Copied from <source environment name>`              | environment, key, type                  |
 
@@ -303,12 +310,13 @@ invalid pattern is handled — is engine behaviour and lives in `docs/evaluation
 
 ## Status
 
-**Exists.** The nineteen routes above; the `flags`, `flag_environment_configs`,
-`flag_variations`, `targeting_rules`, `targeting_conditions`, `flag_individual_targets`,
-`flag_versions` and `flag_dependencies` tables; create, canonical and workspace-wide read,
-identity update, the variation routes, configuration publish, rule and target replacement,
-per-environment versions and archiving. Protected environments refuse a direct configuration,
-rules or targets write with 409 `approval_required`.
+**Exists.** The routes above, including `PUT FLAG/environments/:environmentKey/targeting`, which
+publishes rules, targets and the configuration in one transaction; the `flags`,
+`flag_environment_configs`, `flag_variations`, `targeting_rules`, `targeting_conditions`,
+`flag_individual_targets`, `flag_versions` and `flag_dependencies` tables; create, canonical and
+workspace-wide read, identity update, the variation routes, configuration publish, rule and target
+replacement, per-environment versions and archiving. Protected environments refuse a direct
+configuration, rules or targets write with 409 `approval_required`.
 
 **Partial.** Flag dependencies: the table and the read endpoint exist, but nothing in the API
 writes a row and evaluation never reads the table. The dashboard's archive control is rendered

@@ -240,6 +240,94 @@ describe("flags targeting", () => {
     ]);
   });
 
+  it("publishes rules, targets and the served default as one version", async () => {
+    const underTest = await fixture();
+    await createFlag(underTest, "checkout-v2");
+    await createSegment(underTest, "beta-users");
+
+    const published = await app.request(
+      configPath(underTest, "checkout-v2", "/targeting"),
+      {
+        method: "PUT",
+        headers: headers(underTest.session),
+        body: JSON.stringify({
+          rules: RULES.rules,
+          targets: [{ userId: "user-42", variationKey: "on" }],
+          config: {
+            enabled: true,
+            offVariation: "off",
+            defaultVariation: "on",
+            rolloutPercentage: 25,
+            bucketBy: "userId",
+          },
+        }),
+      },
+    );
+
+    expect(published.status).toBe(200);
+    await expect(published.json()).resolves.toMatchObject({
+      enabled: true,
+      rolloutPercentage: 25,
+      rules: [
+        {
+          description: "Internal testers",
+          segmentKeys: ["beta-users"],
+          conditions: [
+            {
+              attribute: "email",
+              operator: "contains",
+              values: ["@dariise.dev"],
+            },
+          ],
+        },
+        { rollout: { percentage: 25, bucketBy: "userId" } },
+      ],
+      individualTargets: [{ userId: "user-42", variationKey: "on" }],
+    });
+
+    // All three collections land as one publish, so the history gains one
+    // version and the audit log one row rather than three of each.
+    const versions = await app.request(
+      configPath(underTest, "checkout-v2", "/versions"),
+      { headers: { cookie: underTest.session.cookie } },
+    );
+    const history = (await versions.json()) as {
+      data: Array<{ version: number }>;
+    };
+
+    expect(history.data.map((entry) => entry.version)).toEqual([2, 1]);
+
+    const { db } = await import("../../db/client.js");
+    const { auditLog } = await import("../../db/schema/index.js");
+    const actions = (await db.select().from(auditLog)).map((row) => row.action);
+
+    expect(actions.filter((action) => action === "flag.updated")).toHaveLength(1);
+  });
+
+  it("refuses a targeting publish that names an unknown segment, writing nothing", async () => {
+    const underTest = await fixture();
+    await createFlag(underTest, "checkout-v2");
+
+    const response = await app.request(
+      configPath(underTest, "checkout-v2", "/targeting"),
+      {
+        method: "PUT",
+        headers: headers(underTest.session),
+        body: JSON.stringify({
+          rules: [{ variation: "on", conditions: [], segmentKeys: ["ghost"] }],
+          targets: [{ userId: "user-42", variationKey: "on" }],
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+
+    const config = await readConfig(underTest, "checkout-v2");
+
+    expect(config.rules).toEqual([]);
+    expect(config.individualTargets).toEqual([]);
+  });
+
   it("lists versions newest first, one per publish", async () => {
     const underTest = await fixture();
     await createFlag(underTest, "checkout-v2");

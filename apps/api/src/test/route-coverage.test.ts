@@ -296,6 +296,29 @@ describe("route coverage: the flag route surface", () => {
         body: { targets: [{ userId: "user-1", variationKey: "on" }] },
         status: 200,
       },
+      {
+        method: "PUT",
+        path: `${config}/targeting`,
+        body: {
+          rules: [
+            {
+              description: "Everything else",
+              conditions: [],
+              variation: "on",
+              segmentKeys: [],
+            },
+          ],
+          targets: [{ userId: "user-2", variationKey: "off" }],
+          config: {
+            enabled: true,
+            offVariation: "off",
+            defaultVariation: "on",
+            rolloutPercentage: 50,
+            bucketBy: "userId",
+          },
+        },
+        status: 200,
+      },
       { method: "GET", path: `${config}/versions`, status: 200 },
       { method: "GET", path: `${flag}/dependencies`, status: 200 },
       { method: "DELETE", path: `${flag}/variations/maybe`, status: 200 },
@@ -695,6 +718,21 @@ describe("route coverage: archived flags", () => {
       { method: "PATCH", path: `${config}/enabled`, body: { enabled: true } },
       { method: "PUT", path: `${config}/rules`, body: { rules: [] } },
       { method: "PUT", path: `${config}/targets`, body: { targets: [] } },
+      {
+        method: "PUT",
+        path: `${config}/targeting`,
+        body: {
+          rules: [],
+          targets: [],
+          config: {
+            enabled: true,
+            offVariation: "off",
+            defaultVariation: "on",
+            rolloutPercentage: 100,
+            bucketBy: "userId",
+          },
+        },
+      },
       {
         method: "POST",
         path: `${flag}/variations`,
