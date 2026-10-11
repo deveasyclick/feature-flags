@@ -16,6 +16,7 @@ import {
   type FlagVariation,
   type FlagVariationValue,
 } from "@dariise/contracts";
+import { variationKeyFromName } from "@/components/app/flags/flag-variation-list";
 import { VariationValueInput } from "@/components/app/flags/variation-value-input";
 import {
   parseVariationText,
@@ -103,12 +104,10 @@ export function FlagVariations({
     toRows(initialVariations),
   );
   const [draft, setDraft] = useState<{
-    key: string;
     name: string;
     value: FlagVariationValue;
     description: string;
   }>(() => ({
-    key: "",
     name: "",
     value: type === "boolean" ? false : type === "number" ? 0 : type === "json" ? {} : "",
     description: "",
@@ -126,6 +125,11 @@ export function FlagVariations({
 
   /** The message the add form's value field shows, if it is not a value. */
   const draftValueError = variationValueError(type, draftText);
+  /** The key the draft name produces, shown before the variation exists. */
+  const draftKey = variationKeyFromName(
+    draft.name,
+    new Set(rows.map((row) => row.key)),
+  );
 
   function patchRow(key: string, patch: Partial<FlagVariation>) {
     setRows((previous) =>
@@ -170,9 +174,24 @@ export function FlagVariations({
       return;
     }
 
+    const name = draft.name.trim();
+
+    if (name === "") {
+      setError("A variation needs a name: its key is derived from it.");
+      return;
+    }
+
+    // A key is permanent, so it is derived from the name once and then fixed.
+    const key = variationKeyFromName(name, new Set(rows.map((row) => row.key)));
+
+    if (!key) {
+      setError("That name has no letters or numbers to build a key from.");
+      return;
+    }
+
     const parsed = createFlagVariationSchema.safeParse({
-      key: draft.key.trim(),
-      name: draft.name.trim(),
+      key,
+      name,
       value: value.value,
       description: draft.description.trim() || null,
     });
@@ -210,7 +229,6 @@ export function FlagVariations({
       setRows((previous) => [...previous, { ...created, saved: created }]);
       setDraft((previous) => ({
         ...previous,
-        key: "",
         name: "",
         description: "",
       }));
@@ -475,25 +493,6 @@ export function FlagVariations({
 
           <div className="mt-3 space-y-3">
             <div className="space-y-1">
-              <Label htmlFor="new-variation-key" className="text-[11px]">
-                key
-              </Label>
-              <Input
-                id="new-variation-key"
-                className="h-8 font-mono text-[12px]"
-                disabled={archived}
-                placeholder="treatment"
-                value={draft.key}
-                onChange={(event) =>
-                  setDraft((previous) => ({
-                    ...previous,
-                    key: event.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="space-y-1">
               <Label htmlFor="new-variation-name" className="text-[11px]">
                 name
               </Label>
@@ -510,6 +509,16 @@ export function FlagVariations({
                   }))
                 }
               />
+              <p className="text-muted-foreground text-[11px]">
+                {draftKey ? (
+                  <>
+                    Its key will be{" "}
+                    <span className="font-mono text-foreground">{draftKey}</span>
+                  </>
+                ) : (
+                  "Its key comes from the name."
+                )}
+              </p>
             </div>
 
             <div className="space-y-1">
@@ -554,7 +563,6 @@ export function FlagVariations({
                 onClick={() =>
                   setDraft((previous) => ({
                     ...previous,
-                    key: "",
                     name: "",
                     description: "",
                   }))

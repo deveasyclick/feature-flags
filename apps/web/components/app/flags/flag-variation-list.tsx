@@ -65,19 +65,40 @@ export function deriveVariationKeys(
           (typeof draft.value === "string" ? toWorkspaceSlug(draft.value) : "") ||
           role ||
           `variation-${index + 1}`;
-
-    let key = base;
-    let attempt = 2;
-
-    while (taken.has(key)) {
-      key = `${base}-${attempt}`;
-      attempt += 1;
-    }
+    const key = uniqueKey(base, taken);
 
     taken.add(key);
 
     return key;
   });
+}
+
+/**
+ * The key a name produces for a flag that already holds variations.
+ *
+ * The name is what the reader types, so this is what the API is sent. Null while
+ * the name has no letters or digits to build a key from.
+ */
+export function variationKeyFromName(
+  name: string,
+  taken: ReadonlySet<string>,
+): string | null {
+  const base = toWorkspaceSlug(name);
+
+  return base === "" ? null : uniqueKey(base, taken);
+}
+
+/** The base itself, or the first free numeric suffix of it. */
+function uniqueKey(base: string, taken: ReadonlySet<string>): string {
+  let key = base;
+  let attempt = 2;
+
+  while (taken.has(key)) {
+    key = `${base}-${attempt}`;
+    attempt += 1;
+  }
+
+  return key;
 }
 
 export function FlagVariationList({
