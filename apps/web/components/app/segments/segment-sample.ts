@@ -1,8 +1,9 @@
 import type {
   TargetingAttributeType,
   TargetingConditionInput,
-  TargetingOperator,
 } from "@dariise/contracts";
+
+import { operatorLabels } from "@/lib/targeting";
 
 /**
  * The preview audience.
@@ -94,88 +95,6 @@ const attributeFields: Record<string, SampleField> = {
   "user.id": "id",
   id: "id",
 };
-
-export const operatorLabels: Record<TargetingOperator, string> = {
-  equals: "is",
-  not_equals: "is not",
-  contains: "contains",
-  not_contains: "does not contain",
-  in: "is one of",
-  not_in: "is not one of",
-  greater_than: "greater than",
-  greater_than_or_equal: "at least",
-  less_than: "less than",
-  less_than_or_equal: "at most",
-  matches_regex: "matches regex",
-};
-
-const operatorsByType: Record<TargetingAttributeType, TargetingOperator[]> = {
-  boolean: ["equals", "not_equals"],
-  string: [
-    "equals",
-    "not_equals",
-    "in",
-    "not_in",
-    "contains",
-    "not_contains",
-    "matches_regex",
-  ],
-  number: [
-    "equals",
-    "not_equals",
-    "in",
-    "not_in",
-    "greater_than",
-    "greater_than_or_equal",
-    "less_than",
-    "less_than_or_equal",
-  ],
-  semver: [
-    "equals",
-    "not_equals",
-    "greater_than",
-    "greater_than_or_equal",
-    "less_than",
-    "less_than_or_equal",
-  ],
-  date: [
-    "equals",
-    "not_equals",
-    "greater_than",
-    "greater_than_or_equal",
-    "less_than",
-    "less_than_or_equal",
-  ],
-};
-
-export function operatorsForAttributeType(
-  attributeType: TargetingAttributeType,
-): Array<{ value: TargetingOperator; label: string }> {
-  return operatorsByType[attributeType].map((operator) => ({
-    value: operator,
-    label: operatorLabels[operator],
-  }));
-}
-
-export interface SegmentAttributeOption {
-  value: string;
-  type: TargetingAttributeType;
-}
-
-export const segmentAttributeOptions: SegmentAttributeOption[] = [
-  { value: "user.beta", type: "boolean" },
-  { value: "user.email", type: "string" },
-  { value: "user.plan", type: "string" },
-  { value: "region", type: "string" },
-  { value: "sessions", type: "number" },
-];
-
-export function attributeTypeOf(attribute: string): TargetingAttributeType {
-  return (
-    segmentAttributeOptions.find((option) => option.value === attribute)?.type ??
-    "string"
-  );
-}
 
 function normalise(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
@@ -281,21 +200,6 @@ export function countMatchingSampleUsers(
   conditions: TargetingConditionInput[],
 ): number {
   return matchingSampleUsers(conditions).length;
-}
-
-export function formatRuleSummary(
-  conditions: TargetingConditionInput[],
-): string {
-  if (conditions.length === 0) return "No conditions";
-
-  return conditions
-    .map(
-      (condition) =>
-        `${condition.attribute} ${operatorLabels[condition.operator]} ${
-          condition.values.length > 0 ? condition.values.join(", ") : "any"
-        }`,
-    )
-    .join(" · ");
 }
 
 export function matchedAttributes(

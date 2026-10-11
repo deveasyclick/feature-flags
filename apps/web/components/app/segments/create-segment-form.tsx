@@ -5,40 +5,33 @@ import Link from "next/link";
 import {
   CheckIcon,
   LoaderCircleIcon,
-  PlusIcon,
   RocketIcon,
-  XIcon,
 } from "lucide-react";
 import {
   createSegmentSchema,
   toFieldErrors,
   toWorkspaceSlug,
   type FieldErrors,
-  type TargetingConditionInput,
-  type TargetingOperator,
 } from "@dariise/contracts";
 import { CreateSegmentHeader } from "@/components/app/segments/segment-headers";
 import {
-  attributeTypeOf,
   countMatchingSampleUsers,
-  formatRuleSummary,
-  operatorsForAttributeType,
   sampleAudience,
-  segmentAttributeOptions,
 } from "@/components/app/segments/segment-sample";
 import { SdkPreview } from "@/components/app/flags/sdk-preview";
+import { ConditionList } from "@/components/app/targeting/condition-list";
 import { Field, FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, segments } from "@/lib/api";
+import {
+  conditionsNeedValues,
+  formatConditionSummary,
+  newConditionDraft,
+  toConditionInputs,
+  type ConditionDraft,
+} from "@/lib/targeting";
 
 const steps = ["Details", "Conditions", "Review"] as const;
 
@@ -50,54 +43,19 @@ const tips = [
 
 type SegmentField = "name" | "key" | "description" | "rules";
 
-interface RuleDraft {
-  id: string;
-  attribute: string;
-  operator: TargetingOperator;
-  /** Raw comma-separated input, split on submit. */
-  values: string;
-}
-
 function validate(input: unknown): FieldErrors<SegmentField> | null {
   const result = createSegmentSchema.safeParse(input);
 
   return result.success ? null : toFieldErrors<SegmentField>(result.error);
 }
 
-function toConditions(rules: RuleDraft[]): TargetingConditionInput[] {
-  return rules.map((rule) => ({
-    attribute: rule.attribute,
-    attributeType: attributeTypeOf(rule.attribute),
-    operator: rule.operator,
-    values: rule.values
-      .split(",")
-      .map((value) => value.trim())
-      .filter(Boolean),
-  }));
-}
-
-function withAttribute(rule: RuleDraft, attribute: string): RuleDraft {
-  const allowed = operatorsForAttributeType(attributeTypeOf(attribute)).map(
-    (option) => option.value,
-  );
-
-  return {
-    ...rule,
-    attribute,
-    operator: allowed.includes(rule.operator)
-      ? rule.operator
-      : (allowed[0] ?? rule.operator),
-  };
-}
-
 export function CreateSegmentForm({ projectKey }: { readonly projectKey: string }) {
-  const ruleIdRef = useRef(1);
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [description, setDescription] = useState("");
-  const [rules, setRules] = useState<RuleDraft[]>([
-    { id: "rule-1", attribute: "user.beta", operator: "equals", values: "" },
+  const [rules, setRules] = useState<ConditionDraft[]>(() => [
+    newConditionDraft(),
   ]);
   const [editedKey, setEditedKey] = useState(false);
   const [errors, setErrors] = useState<FieldErrors<SegmentField>>({});
@@ -105,22 +63,11 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const conditions = useMemo(() => toConditions(rules), [rules]);
+  const conditions = useMemo(() => toConditionInputs(rules), [rules]);
   const reach = useMemo(
     () => countMatchingSampleUsers(conditions),
     [conditions],
   );
-
-  function newRule(): RuleDraft {
-    ruleIdRef.current += 1;
-
-    return {
-      id: `rule-${ruleIdRef.current}`,
-      attribute: "user.beta",
-      operator: "equals",
-      values: "",
-    };
-  }
 
   function clearError(field: SegmentField) {
     setErrors((previous) => ({
@@ -137,7 +84,7 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
     clearError("name");
   }
 
-  function updateRule(id: string, patch: Partial<RuleDraft>) {
+  function updateRule(id: string, patch: Partial<ConditionDraft>) {
     setRules((previous) =>
       previous.map((rule) => (rule.id === id ? { ...rule, ...patch } : rule)),
     );
@@ -145,7 +92,7 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
   }
 
   function addRule() {
-    setRules((previous) => [...previous, newRule()]);
+    setRules((previous) => [...previous, newConditionDraft()]);
   }
 
   function removeRule(id: string) {
@@ -159,15 +106,16 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
       name: name.trim(),
       key: key.trim(),
       description: trimmedDescription ? trimmedDescription : null,
-      rules: toConditions(rules),
+      rules: toConditionInputs(rules),
     };
   }
 
   function validateForm(): FieldErrors<SegmentField> {
-    const valueMissing = rules.some((rule) => !rule.values.trim());
     const next = { ...validate(payload()) };
 
-    if (valueMissing) next.rules = "Every condition needs a value.";
+    if (conditionsNeedValues(rules)) {
+      next.rules = "Every condition needs a value.";
+    }
 
     return next;
   }
@@ -187,7 +135,7 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
     setName("");
     setKey("");
     setDescription("");
-    setRules([newRule()]);
+    setRules([newConditionDraft()]);
     setEditedKey(false);
     setErrors({});
     setCreatedKey(null);
@@ -362,98 +310,15 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
                 </span>
               </div>
 
-              <ul className="mt-4 space-y-2">
-                {rules.map((rule, index) => (
-                  <li
-                    key={rule.id}
-                    className="bg-muted/30 flex flex-wrap items-center gap-2 rounded-lg border p-2.5"
-                  >
-                    <span className="text-muted-foreground w-12 text-[10px] uppercase">
-                      {index === 0 ? "if" : "and"}
-                    </span>
-
-                    <Select
-                      value={rule.attribute}
-                      onValueChange={(value) =>
-                        updateRule(rule.id, withAttribute(rule, value))
-                      }
-                    >
-                      <SelectTrigger
-                        size="sm"
-                        aria-label={`Attribute for condition ${index + 1}`}
-                        className="text-[11px]"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {segmentAttributeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={rule.operator}
-                      onValueChange={(value) =>
-                        updateRule(rule.id, {
-                          operator: value as TargetingOperator,
-                        })
-                      }
-                    >
-                      <SelectTrigger
-                        size="sm"
-                        aria-label={`Operator for condition ${index + 1}`}
-                        className="text-[11px]"
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {operatorsForAttributeType(
-                          attributeTypeOf(rule.attribute),
-                        ).map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <input
-                      value={rule.values}
-                      onChange={(event) =>
-                        updateRule(rule.id, { values: event.target.value })
-                      }
-                      aria-label={`Value for condition ${index + 1}`}
-                      placeholder="true"
-                      className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 h-7 min-w-28 flex-1 rounded-lg border bg-transparent px-2 font-mono text-[11px] outline-none focus-visible:ring-3"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => removeRule(rule.id)}
-                      aria-label={`Remove condition ${index + 1}`}
-                      className="text-muted-foreground hover:text-danger-ink rounded p-1 transition-colors"
-                    >
-                      <XIcon aria-hidden="true" className="size-3.5" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-
-              <p className="text-muted-foreground mt-2 text-[10px]">
-                Separate multiple values with commas.
-              </p>
-
-              <button
-                type="button"
-                onClick={addRule}
-                className="text-muted-foreground hover:text-foreground mt-3 inline-flex items-center gap-1.5 text-[11px] underline-offset-2 hover:underline"
-              >
-                <PlusIcon aria-hidden="true" className="size-3.5" />
-                Add condition
-              </button>
+              <div className="mt-4">
+                <ConditionList
+                  conditions={rules}
+                  emptyLabel="No conditions."
+                  onChange={updateRule}
+                  onAdd={addRule}
+                  onRemove={removeRule}
+                />
+              </div>
 
               {errors.rules ? (
                 <div className="mt-3">
@@ -474,7 +339,7 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
                 {[
                   ["Name", name || "—"],
                   ["Key", key || "—"],
-                  ["Conditions", formatRuleSummary(conditions)],
+                  ["Conditions", formatConditionSummary(conditions)],
                   ["Description", description || "—"],
                 ].map(([label, value]) => (
                   <div

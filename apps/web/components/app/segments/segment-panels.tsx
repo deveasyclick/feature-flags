@@ -5,7 +5,6 @@ import type { SegmentFlag, TargetingCondition } from "@dariise/contracts";
 import { SegmentGlyph } from "@/components/app/segments/segment-glyph";
 import {
   matchingSampleUsers,
-  operatorLabels,
   sampleAudience,
 } from "@/components/app/segments/segment-sample";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { operatorLabels, valuesLabel } from "@/lib/targeting";
 
 const headerClass =
   "text-muted-foreground h-8 px-3 text-[10px] font-medium tracking-[0.1em] uppercase";
@@ -89,9 +89,7 @@ export function SegmentRuleTable({
                   {operatorLabels[condition.operator]}
                 </TableCell>
                 <TableCell className={cn(cellClass, "font-mono text-[11px]")}>
-                  {condition.values.length > 0
-                    ? condition.values.join(", ")
-                    : "any"}
+                  {valuesLabel(condition.values)}
                 </TableCell>
               </TableRow>
             ))}
