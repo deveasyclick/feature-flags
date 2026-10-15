@@ -22,7 +22,7 @@ import {
   UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { AuditAction } from "@dariise/contracts";
+import type { AuditAction } from "@iwifunni/contracts";
 
 export interface AuditActionMeta {
   icon: LucideIcon;

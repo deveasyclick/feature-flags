@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Project } from "@dariise/contracts";
+import type { Project } from "@iwifunni/contracts";
 import { resolveEnvironmentColor } from "@/lib/environment-color";
 import { selectProject } from "@/lib/scope-actions";
 

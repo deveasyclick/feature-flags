@@ -1,7 +1,7 @@
 import type {
   WorkspaceProfile,
   WorkspaceSecuritySettings,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   DEFAULT_SECURITY_SETTINGS,

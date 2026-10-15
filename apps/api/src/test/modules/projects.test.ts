@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { Project } from "@dariise/contracts";
+import type { Project } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

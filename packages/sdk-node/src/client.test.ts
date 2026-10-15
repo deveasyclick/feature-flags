@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import type { SdkConfig } from "@dariise/contracts";
+import type { SdkConfig } from "@iwifunni/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeatureFlags, FeatureFlagsError, type FlagContext } from "./index.js";

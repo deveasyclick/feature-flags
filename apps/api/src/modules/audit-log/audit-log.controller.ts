@@ -1,4 +1,4 @@
-import { auditLogQuerySchema } from "@dariise/contracts";
+import { auditLogQuerySchema } from "@iwifunni/contracts";
 import type { Context } from "hono";
 
 import { requireWorkspace } from "../../middleware/authorization.js";

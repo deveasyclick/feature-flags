@@ -1,4 +1,4 @@
-import type { AuditAction } from "@dariise/contracts";
+import type { AuditAction } from "@iwifunni/contracts";
 
 /** One recorded field change, stringified for display. */
 export interface AuditChangeField {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LayersIcon } from "lucide-react";
 import { cn } from "cn";
-import type { SegmentFlag, TargetingCondition } from "@dariise/contracts";
+import type { SegmentFlag, TargetingCondition } from "@iwifunni/contracts";
 import { SegmentGlyph } from "@/components/app/segments/segment-glyph";
 import {
   matchingSampleUsers,

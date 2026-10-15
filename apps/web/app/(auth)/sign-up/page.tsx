@@ -5,7 +5,7 @@ import { getEnabledProviders, oauthErrorMessage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Create account",
-  description: "Create your Dariise account.",
+  description: "Create your Iwifunni account.",
 };
 
 export default async function SignUpPage({

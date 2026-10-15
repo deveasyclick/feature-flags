@@ -6,7 +6,7 @@ import type {
   TargetingAttributeType,
   TargetingCondition,
   TargetingOperator,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import type {
   SegmentConditionRow,

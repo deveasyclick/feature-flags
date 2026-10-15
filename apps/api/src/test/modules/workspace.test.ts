@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type {
   WorkspaceProfile,
   WorkspaceSecuritySettings,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,
@@ -128,7 +128,7 @@ describe("workspace settings", () => {
         ssoConnected: false,
         twoFactorEnabled: true,
         sessionTimeout: "12h",
-        allowedEmailDomains: ["dariise.dev"],
+        allowedEmailDomains: ["iwifunni.dev"],
         ipAllowlistConfigured: false,
         auditRetentionDays: 365,
       }),
@@ -140,7 +140,7 @@ describe("workspace settings", () => {
       twoFactorEnabled: true,
       sessionTimeout: "12h",
       auditRetentionDays: 365,
-      allowedEmailDomains: ["dariise.dev"],
+      allowedEmailDomains: ["iwifunni.dev"],
     });
 
     // The profile write must not wipe the security block stored beside it.

@@ -58,15 +58,15 @@ import type {
   WorkspaceFlagSummary,
   WorkspaceProfile,
   WorkspaceSecuritySettings,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import env from "shared/env";
 
 /**
- * Thin typed client for the Dariise API. It intentionally has no data-fetching
+ * Thin typed client for the Iwifunni API. It intentionally has no data-fetching
  * framework attached: Server Components call the resource functions directly,
  * and Client Components can call them for mutations.
  *
- * Types come from `@dariise/contracts`, so this file cannot drift from the wire
+ * Types come from `@iwifunni/contracts`, so this file cannot drift from the wire
  * contract the API validates against.
  */
 
@@ -219,11 +219,11 @@ function errorMessage(payload: unknown, status: number): string {
     }
   }
 
-  return `Dariise API request failed with status ${status}`;
+  return `Iwifunni API request failed with status ${status}`;
 }
 
 /**
- * Perform a request against the Dariise API and parse the JSON response.
+ * Perform a request against the Iwifunni API and parse the JSON response.
  *
  * @throws {ApiError} when the API responds with a non-2xx status.
  */
@@ -261,7 +261,7 @@ export async function request<T>(
     if (isAbort(cause)) throw cause;
 
     throw new ApiError(
-      `Could not reach the Dariise API at ${apiBaseUrl()}.`,
+      `Could not reach the Iwifunni API at ${apiBaseUrl()}.`,
       0,
       null,
       cause,
@@ -934,7 +934,7 @@ export const workspace = {
 /**
  * Evaluate a flag for a user.
  *
- * This is the same contract the Dariise SDK uses; the dashboard calls it to
+ * This is the same contract the Iwifunni SDK uses; the dashboard calls it to
  * debug why a user received a particular variation.
  */
 export function evaluate(

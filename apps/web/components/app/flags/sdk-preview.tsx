@@ -1,6 +1,6 @@
 import { CopyIcon } from "lucide-react";
 import { cn } from "cn";
-import type { FlagType, FlagVariationValue } from "@dariise/contracts";
+import type { FlagType, FlagVariationValue } from "@iwifunni/contracts";
 
 interface SdkPreviewProps {
   /** Code lines, rendered one per row so indentation is preserved. */
@@ -88,10 +88,10 @@ export function sdkSnippet(options: {
   const getter = GETTERS[type];
 
   return [
-    'import { FeatureFlags } from "@dariise/node";',
+    'import { FeatureFlags } from "@iwifunni/node";',
     "",
     "const client = new FeatureFlags({",
-    '  sdkKey: process.env.DARIISE_SDK_KEY,',
+    '  sdkKey: process.env.IWIFUNNI_SDK_KEY,',
     ...(environment ? [`  environment: "${environment}",`] : []),
     "});",
     "",

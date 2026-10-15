@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { CreatedApiKey } from "@dariise/contracts";
+import type { CreatedApiKey } from "@iwifunni/contracts";
 import { ApiError, apiKeys } from "@/lib/api";
 
 /**

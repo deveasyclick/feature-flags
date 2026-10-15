@@ -1,4 +1,4 @@
-import { evaluateRequestSchema } from "@dariise/contracts";
+import { evaluateRequestSchema } from "@iwifunni/contracts";
 import type { Context } from "hono";
 
 import { requireWorkspace } from "../../middleware/authorization.js";

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Dariise API — Hono on Node.js, Drizzle over PostgreSQL, Better Auth for sessions.",
+  "description": "Iwifunni API — Hono on Node.js, Drizzle over PostgreSQL, Better Auth for sessions.",
   "scripts": {
     "dev": "tsx watch --import ./instrument.mjs src/server.ts",
     "build": "tsc --project tsconfig.build.json && node scripts/copy-email-templates.mjs",
@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.5",
-    "@dariise/contracts": "workspace:*",
-    "@dariise/engine": "workspace:*",
+    "@iwifunni/contracts": "workspace:*",
+    "@iwifunni/engine": "workspace:*",
     "@getbrevo/brevo": "^6.0.3",
     "@hono/node-server": "^2.1.1",
     "@sentry/hono": "^11.7.0",

@@ -1,7 +1,7 @@
 import type {
   TargetingAttributeType,
   TargetingConditionInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { operatorLabels } from "@/lib/targeting";
 

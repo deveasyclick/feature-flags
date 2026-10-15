@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { ApiKey, CreatedApiKey } from "@dariise/contracts";
-import { MANAGEMENT_API_KEY_SCOPES } from "@dariise/contracts";
+import type { ApiKey, CreatedApiKey } from "@iwifunni/contracts";
+import { MANAGEMENT_API_KEY_SCOPES } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

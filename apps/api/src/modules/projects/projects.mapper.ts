@@ -1,4 +1,4 @@
-import type { Project } from "@dariise/contracts";
+import type { Project } from "@iwifunni/contracts";
 
 import type { ProjectDetailRow } from "./projects.types.js";
 

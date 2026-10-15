@@ -9,7 +9,7 @@ import type {
   SegmentDetail,
   SegmentSummary,
   WorkspaceProfile,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

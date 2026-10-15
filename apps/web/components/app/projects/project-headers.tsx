@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeftIcon, PencilIcon } from "lucide-react";
 import { cn } from "cn";
-import type { Project } from "@dariise/contracts";
+import type { Project } from "@iwifunni/contracts";
 import { environmentColorTone } from "@/components/app/environments/environment-colors";
 import { projectGlyphs } from "@/components/app/projects/project-glyphs";
 import { ProjectMenu } from "@/components/app/projects/project-menu";

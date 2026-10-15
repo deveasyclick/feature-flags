@@ -1,4 +1,4 @@
-# Dariise
+# Iwifunni
 
 Feature management and progressive delivery. pnpm monorepo:
 

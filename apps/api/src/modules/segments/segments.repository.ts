@@ -22,7 +22,7 @@ import {
   segmentCondition,
   targetingRule,
 } from "../../db/schema/index.js";
-import type { TargetingConditionInput } from "@dariise/contracts";
+import type { TargetingConditionInput } from "@iwifunni/contracts";
 
 import type { Transaction } from "../../shared/types/db.js";
 import type {

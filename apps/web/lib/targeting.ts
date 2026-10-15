@@ -3,7 +3,7 @@ import type {
   TargetingCondition,
   TargetingConditionInput,
   TargetingOperator,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 /** How an operator reads in a sentence, on a row and in a summary. */
 export const operatorLabels: Record<TargetingOperator, string> = {

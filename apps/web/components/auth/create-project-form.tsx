@@ -8,7 +8,7 @@ import {
   LoaderCircleIcon,
   PanelsTopLeftIcon,
 } from "lucide-react";
-import { STARTER_ENVIRONMENTS } from "@dariise/contracts";
+import { STARTER_ENVIRONMENTS } from "@iwifunni/contracts";
 import { cn } from "cn";
 import { environmentColorSwatch } from "@/components/app/environments/environment-colors";
 import { AuthCard } from "@/components/auth/auth-card";
@@ -81,7 +81,7 @@ export function CreateProjectForm() {
   return (
     <AuthCard
       steps={<OnboardingSteps current="project" />}
-      title="Welcome to Dariise"
+      title="Welcome to Iwifunni"
       description={`Let's set up your first project. It comes with ${starterEnvironmentNames.join(" and ")}, and you can add more environments later.`}
     >
       <form onSubmit={handleSubmit} noValidate className="space-y-4">

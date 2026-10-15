@@ -19,12 +19,12 @@ import {
   type EnvironmentSummary,
   type MeResponse,
   type Project,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import * as api from "@/lib/api";
 
-export const PROJECT_COOKIE = "dariise.project";
-export const ENVIRONMENT_COOKIE = "dariise.environment";
+export const PROJECT_COOKIE = "iwifunni.project";
+export const ENVIRONMENT_COOKIE = "iwifunni.environment";
 
 /** The signed-in user as the chrome renders them. */
 export interface ChromeUser {

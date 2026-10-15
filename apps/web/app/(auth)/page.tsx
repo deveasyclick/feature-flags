@@ -5,7 +5,7 @@ import { getEnabledProviders, oauthErrorMessage } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your Dariise workspace.",
+  description: "Sign in to your Iwifunni workspace.",
 };
 
 export default async function SignInPage({ searchParams }: PageProps<"/">) {

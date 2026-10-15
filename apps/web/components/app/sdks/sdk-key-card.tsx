@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   type CreatedApiKey,
   type SdkApiKeyKind,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { ApiError, apiKeys } from "@/lib/api";
 
 /**

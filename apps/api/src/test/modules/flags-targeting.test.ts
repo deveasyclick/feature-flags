@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { FlagEnvironmentConfig } from "@dariise/contracts";
+import type { FlagEnvironmentConfig } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,
@@ -133,7 +133,7 @@ const RULES = {
           attribute: "email",
           attributeType: "string",
           operator: "contains",
-          values: ["@dariise.dev"],
+          values: ["@iwifunni.dev"],
         },
       ],
       variation: "on",
@@ -173,7 +173,7 @@ describe("flags targeting", () => {
           {
             attribute: "email",
             operator: "contains",
-            values: ["@dariise.dev"],
+            values: ["@iwifunni.dev"],
           },
         ],
         rollout: null,
@@ -276,7 +276,7 @@ describe("flags targeting", () => {
             {
               attribute: "email",
               operator: "contains",
-              values: ["@dariise.dev"],
+              values: ["@iwifunni.dev"],
             },
           ],
         },

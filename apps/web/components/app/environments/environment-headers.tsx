@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeftIcon, PencilIcon, ServerIcon } from "lucide-react";
 import { cn } from "cn";
-import type { EnvironmentDetail } from "@dariise/contracts";
+import type { EnvironmentDetail } from "@iwifunni/contracts";
 import { EnvironmentBadges } from "@/components/app/environments/environment-cards";
 import { environmentColorTone } from "@/components/app/environments/environment-colors";
 import { EnvironmentMenu } from "@/components/app/environments/environment-menu";

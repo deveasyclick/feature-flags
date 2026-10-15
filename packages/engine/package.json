@@ -1,8 +1,8 @@
 {
-  "name": "@dariise/engine",
+  "name": "@iwifunni/engine",
   "version": "0.1.0",
   "private": true,
-  "description": "The pure Dariise decision engine, shared by the API and every SDK.",
+  "description": "The pure Iwifunni decision engine, shared by the API and every SDK.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -25,7 +25,7 @@
     "fixtures": "tsx scripts/generate-conformance.ts"
   },
   "dependencies": {
-    "@dariise/contracts": "workspace:*"
+    "@iwifunni/contracts": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

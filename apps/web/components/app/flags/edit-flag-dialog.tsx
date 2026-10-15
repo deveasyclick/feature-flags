@@ -9,7 +9,7 @@ import {
   type FieldErrors,
   type FlagSummary,
   type UpdateFlagInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { Field, FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import {

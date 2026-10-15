@@ -6,7 +6,7 @@ import {
   toFieldErrors,
   updateProfileSchema,
   type SessionUser,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { SettingsCard } from "@/components/app/settings-card";
 import { Field, FieldError } from "@/components/auth/field";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";

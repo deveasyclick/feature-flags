@@ -4,7 +4,7 @@ import {
   emailOTP,
   organization as organizationPlugin,
 } from "better-auth/plugins";
-import { VERIFICATION_CODE_LENGTH } from "@dariise/contracts";
+import { VERIFICATION_CODE_LENGTH } from "@iwifunni/contracts";
 
 import { db } from "../../db/client.js";
 import {
@@ -57,7 +57,7 @@ const socialProviders = {
 
 export function createAuthConfig(emailService: EmailService) {
   return betterAuth({
-    appName: "Dariise",
+    appName: "Iwifunni",
     baseURL: env.betterAuthUrl,
     basePath: "/api/auth",
     secret: env.betterAuthSecret,

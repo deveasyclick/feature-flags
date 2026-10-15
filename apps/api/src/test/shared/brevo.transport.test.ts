@@ -11,12 +11,12 @@ function brevoResponse(): Response {
 // before the transport is imported.
 beforeAll(() => {
   process.env.DATABASE_URL ??=
-    "postgresql://postgres:postgres@localhost:5442/dariise_test";
+    "postgresql://postgres:postgres@localhost:5442/iwifunni_test";
   process.env.BETTER_AUTH_SECRET ??=
     "test-secret-that-is-at-least-32-chars-long";
   process.env.BREVO_API_KEY = "xkeysib-test-key";
-  process.env.EMAIL_FROM = "no-reply@dariise.test";
-  process.env.EMAIL_SENDER_NAME = "Dariise";
+  process.env.EMAIL_FROM = "no-reply@iwifunni.test";
+  process.env.EMAIL_SENDER_NAME = "Iwifunni";
 });
 
 afterEach(() => {
@@ -34,7 +34,7 @@ async function loadTransport() {
 const message = {
   to: "ada@example.com",
   toName: "Ada",
-  subject: "Reset your Dariise password",
+  subject: "Reset your Iwifunni password",
   text: "plain body",
   html: "<p>html body</p>",
 };
@@ -67,8 +67,8 @@ describe("BrevoTransport", () => {
     };
 
     expect(body.sender).toEqual({
-      email: "no-reply@dariise.test",
-      name: "Dariise",
+      email: "no-reply@iwifunni.test",
+      name: "Iwifunni",
     });
     expect(body.to?.[0]).toEqual({ email: "ada@example.com", name: "Ada" });
     expect(body.subject).toBe(message.subject);

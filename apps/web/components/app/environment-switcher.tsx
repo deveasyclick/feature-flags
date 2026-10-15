@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { EnvironmentSummary } from "@dariise/contracts";
+import type { EnvironmentSummary } from "@iwifunni/contracts";
 import { resolveEnvironmentColor } from "@/lib/environment-color";
 import { selectEnvironment } from "@/lib/scope-actions";
 

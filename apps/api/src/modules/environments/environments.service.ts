@@ -7,7 +7,7 @@ import {
   type EnvironmentSummary,
   type UpdateEnvironmentInput,
   type UpdateEnvironmentSettingsInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { writeAuditLog } from "../../db/audit.js";
 import { db } from "../../db/client.js";

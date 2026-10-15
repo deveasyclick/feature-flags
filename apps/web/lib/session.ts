@@ -12,7 +12,7 @@
 
 import { cache } from "react";
 
-import type { MeResponse } from "@dariise/contracts";
+import type { MeResponse } from "@iwifunni/contracts";
 
 import env from "shared/env";
 
@@ -39,7 +39,7 @@ export const getSession = cache(async (): Promise<MeResponse | null> => {
     });
   } catch (cause) {
     throw new Error(
-      `Could not reach the Dariise API at ${env.apiInternalUrl}. Is apps/api running?`,
+      `Could not reach the Iwifunni API at ${env.apiInternalUrl}. Is apps/api running?`,
       { cause },
     );
   }
@@ -48,7 +48,7 @@ export const getSession = cache(async (): Promise<MeResponse | null> => {
 
   if (!response.ok) {
     throw new Error(
-      `Dariise API returned ${response.status} for /v1/me.`,
+      `Iwifunni API returned ${response.status} for /v1/me.`,
     );
   }
 

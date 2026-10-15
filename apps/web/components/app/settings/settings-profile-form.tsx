@@ -8,7 +8,7 @@ import {
   type EnvironmentSummary,
   type UpdateWorkspaceInput,
   type WorkspaceProfile,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { SettingsCard } from "@/components/app/settings-card";
 import {
   timezoneChoices,

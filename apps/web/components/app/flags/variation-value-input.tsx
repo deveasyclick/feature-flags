@@ -1,6 +1,6 @@
 "use client";
 
-import type { FlagType } from "@dariise/contracts";
+import type { FlagType } from "@iwifunni/contracts";
 import { FieldError } from "@/components/auth/field";
 import { Input } from "@/components/ui/input";
 import {

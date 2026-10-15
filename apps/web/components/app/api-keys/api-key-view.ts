@@ -2,7 +2,7 @@ import type {
   ApiKey,
   ApiKeyKind,
   EnvironmentSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import {
   resolveEnvironmentColor,
   type EnvironmentColor,

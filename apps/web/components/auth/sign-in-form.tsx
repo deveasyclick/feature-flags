@@ -24,7 +24,7 @@ import {
   type OAuthProvider,
 } from "@/lib/auth";
 import { isEmail, isRequired } from "@/lib/validation";
-import { VERIFICATION_CODE_LENGTH } from "@dariise/contracts";
+import { VERIFICATION_CODE_LENGTH } from "@iwifunni/contracts";
 
 type Action = OAuthProvider | "credentials" | "code" | "resend";
 
@@ -280,7 +280,7 @@ export function SignInForm({
 
   return (
     <AuthCard
-      title="Sign in to Dariise"
+      title="Sign in to Iwifunni"
       description="Welcome back — the place to manage your feature flags."
     >
       <div className="space-y-3">

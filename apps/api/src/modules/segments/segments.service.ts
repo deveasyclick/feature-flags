@@ -7,7 +7,7 @@ import type {
   SegmentListQuery,
   SegmentSummary,
   UpdateSegmentInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { writeAuditLog } from "../../db/audit.js";
 import { db } from "../../db/client.js";

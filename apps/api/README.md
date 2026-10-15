@@ -1,6 +1,6 @@
-# Dariise API
+# Iwifunni API
 
-The Dariise API: a Hono 4 application on Node.js, backed by PostgreSQL through
+The Iwifunni API: a Hono 4 application on Node.js, backed by PostgreSQL through
 Drizzle ORM, with Better Auth owning sessions and the identity flows. It serves
 the versioned `/v1` wire contract that `packages/contracts` describes and
 `apps/web` consumes.
@@ -40,7 +40,7 @@ individual targets hang off it. A targeting rule reaches the project's segments 
 - Hono 4, served by `@hono/node-server`
 - Drizzle ORM over PostgreSQL (`pg`)
 - Better Auth — sessions, email codes, OAuth, API keys
-- zod v4, with `@dariise/contracts` as the shared wire contract
+- zod v4, with `@iwifunni/contracts` as the shared wire contract
 - Brevo and MJML for transactional email
 - Vitest for the test suite; Biome for lint and format
 
@@ -191,14 +191,14 @@ skips a layer or goes backward.
   403, so a 403 cannot confirm that a resource exists.
 
 Better Auth owns its own tables through the Drizzle adapter; `auth.repository.ts`
-holds only the reads Dariise needs. The decision record is
+holds only the reads Iwifunni needs. The decision record is
 [`docs/architecture.md`](../../docs/architecture.md), and the long-form module,
 routing, contract and validation rules are in
 [`.agents/skills/api/skill.md`](../../.agents/skills/api/skill.md).
 
 ### The error contract
 
-Every Dariise failure is rendered by `errorResponse`, the single handler passed
+Every Iwifunni failure is rendered by `errorResponse`, the single handler passed
 to `app.onError`. Failures are built with the `ApiError` factories and returned
 as:
 
@@ -239,7 +239,7 @@ failing on the first request that needs it. Copy `apps/api/.env.example`.
 | `NODE_ENV`                                  | No       | `development`           | `development`, `test` or `production`                                              |
 | `DATABASE_POOL_MAX`                         | No       | `10`                    | Max connections this process opens; keep instances × this below the server's limit |
 | `REDIS_URL`                                 | No       | —                       | Parsed but not connected — see below                                               |
-| `EMAIL_SENDER_NAME`                         | No       | `Dariise`               | Sender name shown in the recipient's inbox                                         |
+| `EMAIL_SENDER_NAME`                         | No       | `Iwifunni`               | Sender name shown in the recipient's inbox                                         |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | No       | —                       | GitHub sign-in; needs both values or the provider is disabled                      |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No       | —                       | Google sign-in; needs both values or the provider is disabled                      |
 
@@ -287,7 +287,7 @@ src/test/
 - `fileParallelism: false` in `vitest.config.ts`: every integration suite shares
   one test database, and concurrent workers would truncate or re-migrate it
   underneath each other.
-- `loadTestEnv()` falls back to `postgresql://postgres:postgres@localhost:5442/dariise_test`
+- `loadTestEnv()` falls back to `postgresql://postgres:postgres@localhost:5442/iwifunni_test`
   and `resetTestDatabase()` creates that database when it is absent.
 - The reset refuses to run unless the database name ends in `_test`, which is
   what stops a test run from wiping the development database. Isolation is by

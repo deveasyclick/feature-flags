@@ -15,7 +15,7 @@ import {
   type FlagType,
   type FlagVariation,
   type FlagVariationValue,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { variationKeyFromName } from "@/components/app/flags/flag-variation-list";
 import { VariationValueInput } from "@/components/app/flags/variation-value-input";
 import {

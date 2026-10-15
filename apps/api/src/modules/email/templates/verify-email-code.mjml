@@ -1,7 +1,7 @@
 <mjml>
   <mj-head>
     <mj-title>Confirm your email</mj-title>
-    <mj-preview>Enter your confirmation code to finish setting up Dariise.</mj-preview>
+    <mj-preview>Enter your confirmation code to finish setting up Iwifunni.</mj-preview>
     <mj-attributes>
       <mj-all font-family="Helvetica, Arial, sans-serif" />
       <mj-text color="#3f3f46" font-size="15px" line-height="24px" />
@@ -10,14 +10,14 @@
   <mj-body background-color="#f4f4f5" width="480px">
     <mj-section background-color="#ffffff" border="1px solid #e4e4e7" border-radius="12px" padding="32px">
       <mj-column>
-        <mj-text font-size="13px" font-weight="700" letter-spacing="0.08em" text-transform="uppercase" color="#71717a" padding-bottom="24px">Dariise</mj-text>
+        <mj-text font-size="13px" font-weight="700" letter-spacing="0.08em" text-transform="uppercase" color="#71717a" padding-bottom="24px">Iwifunni</mj-text>
         <mj-text font-size="20px" line-height="28px" color="#18181b" font-weight="700" padding-bottom="16px">Confirm your email</mj-text>
         <mj-text padding-bottom="16px">{{greeting}}</mj-text>
-        <mj-text padding-bottom="16px">Enter this code to confirm your email address and finish setting up your Dariise account.</mj-text>
+        <mj-text padding-bottom="16px">Enter this code to confirm your email address and finish setting up your Iwifunni account.</mj-text>
         <mj-text align="center" font-size="34px" letter-spacing="0.28em" font-weight="700" color="#18181b" padding="8px 0 24px">{{code}}</mj-text>
         <mj-text font-size="13px" line-height="20px" color="#71717a" padding-bottom="24px">The code expires in {{expiresInMinutes}} minutes. You can request a new one from the dashboard if it runs out.</mj-text>
         <mj-divider border-color="#e4e4e7" padding="0 0 16px" />
-        <mj-text font-size="13px" line-height="20px" color="#71717a">If you did not create a Dariise account, you can ignore this email.</mj-text>
+        <mj-text font-size="13px" line-height="20px" color="#71717a">If you did not create an Iwifunni account, you can ignore this email.</mj-text>
       </mj-column>
     </mj-section>
   </mj-body>

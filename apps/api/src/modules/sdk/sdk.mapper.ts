@@ -8,7 +8,7 @@ import type {
   SdkSegment,
   SdkTarget,
   SdkVariation,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import type {
   SdkConditionRow,

@@ -1,11 +1,11 @@
-import type { SessionTimeout, Theme } from "@dariise/contracts";
+import type { SessionTimeout, Theme } from "@iwifunni/contracts";
 
 export type WorkspaceTheme = Theme;
 
 export const settingsDescription =
   "Manage your workspace, team access, and developer configuration.";
 
-export const workspaceHost = "dariise.dev";
+export const workspaceHost = "flags.iwifunni.cc";
 
 export function workspaceUrl(slug: string): string {
   return `${workspaceHost}/${slug}`;

@@ -1,6 +1,6 @@
-# Dariise documentation
+# Iwifunni documentation
 
-Start with the repository [`README.md`](../README.md) for what Dariise is and how to run
+Start with the repository [`README.md`](../README.md) for what Iwifunni is and how to run
 it. Everything below is the durable reference.
 
 ## Documents

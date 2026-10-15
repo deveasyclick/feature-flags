@@ -34,14 +34,14 @@ export function toError(cause: unknown): FeatureFlagsError {
   if (cause instanceof Error && cause.name === "AbortError") {
     return new FeatureFlagsError(
       "timeout",
-      "The Dariise API did not answer in time.",
+      "The Iwifunni API did not answer in time.",
       { cause },
     );
   }
 
   return new FeatureFlagsError(
     "network",
-    "The Dariise API could not be reached.",
+    "The Iwifunni API could not be reached.",
     { cause },
   );
 }

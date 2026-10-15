@@ -1,7 +1,7 @@
 import type {
   EnvironmentDetail,
   EnvironmentSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import type {
   EnvironmentConnectionUrls,

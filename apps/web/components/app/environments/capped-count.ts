@@ -1,4 +1,4 @@
-import type { FlagSummary } from "@dariise/contracts";
+import type { FlagSummary } from "@iwifunni/contracts";
 
 /**
  * A count the API only reports as a page.

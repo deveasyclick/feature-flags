@@ -147,17 +147,17 @@ close(): void
 
 | Language | Package | Status |
 | --- | --- | --- |
-| Node | `@dariise/node` (`packages/sdk-node`) | built, not published |
-| React | `@dariise/react` | planned |
-| Python | `dariise` | planned |
-| Go | `github.com/dariise/dariise-go` | planned |
-| Java | `dev.dariise:dariise-java` | planned |
-| Ruby | `dariise` | planned |
-| PHP | `dariise/dariise` | planned |
-| .NET | `Dariise` | planned |
+| Node | `@iwifunni/node` (`packages/sdk-node`) | built, not published |
+| React | `@iwifunni/react` | planned |
+| Python | `iwifunni` | planned |
+| Go | `github.com/iwifunni/iwifunni-go` | planned |
+| Java | `dev.iwifunni:iwifunni-java` | planned |
+| Ruby | `iwifunni` | planned |
+| PHP | `iwifunni/iwifunni` | planned |
+| .NET | `Iwifunni` | planned |
 
 The TypeScript engine in `packages/engine` is the reference implementation and
-the Node SDK uses it directly. `@dariise/node` is `private` and consumed from the
+the Node SDK uses it directly. `@iwifunni/node` is `private` and consumed from the
 workspace: it is not on npm yet, so the install snippet is aspirational until it
 is published. Every other language re-implements it and is held
 to the same corpus.
@@ -165,14 +165,14 @@ to the same corpus.
 ## The conformance corpus
 
 `sdks/fixtures/conformance.json` is generated from the reference engine
-(`pnpm --filter @dariise/engine fixtures`) and committed. It pins bucketing
+(`pnpm --filter @iwifunni/engine fixtures`) and committed. It pins bucketing
 vectors, whole snapshot-to-decision cases and the values the getters should
 return. The engine's own test fails while the file is out of date, so a change to
 the algorithm cannot silently drift from the other implementations; each SDK's
 test suite reads the same file.
 
-`pnpm check` covers the TypeScript workspaces only (`@dariise/engine`,
-`@dariise/node`, `apps/api`, `apps/web`). The other languages run their own test
+`pnpm check` covers the TypeScript workspaces only (`@iwifunni/engine`,
+`@iwifunni/node`, `apps/api`, `apps/web`). The other languages run their own test
 command, documented in their directory, and their conformance test is what keeps
 them honest.
 

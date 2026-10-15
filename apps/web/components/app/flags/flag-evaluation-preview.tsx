@@ -15,7 +15,7 @@ import type {
   FlagDetail,
   FlagEnvironmentConfig,
   TargetingRule,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { AttributeSuggestions } from "@/components/app/targeting/attribute-suggestions";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";

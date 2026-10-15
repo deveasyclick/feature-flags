@@ -14,7 +14,7 @@ import {
   type FieldErrors,
   type FlagSummary,
   type InitialFlagState,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import {
   ProtectedEnvironmentsNote,
   WhatYouGetCard,

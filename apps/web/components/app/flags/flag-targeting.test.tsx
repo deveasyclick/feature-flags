@@ -6,7 +6,7 @@ import type {
   FlagDetail,
   FlagEnvironmentConfig,
   TargetingRule,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 const refresh = vi.fn();
 

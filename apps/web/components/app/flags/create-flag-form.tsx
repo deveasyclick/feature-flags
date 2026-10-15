@@ -21,7 +21,7 @@ import {
   type FieldErrors,
   type FlagType,
   type FlagVariationValue,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { cn } from "cn";
 import {
   deriveVariationKeys,

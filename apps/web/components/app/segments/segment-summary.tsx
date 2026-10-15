@@ -1,4 +1,4 @@
-import type { SegmentFlag, TargetingCondition } from "@dariise/contracts";
+import type { SegmentFlag, TargetingCondition } from "@iwifunni/contracts";
 import { formatRelativeTime } from "@/lib/format";
 
 /** Definition tab — the summary grid shown beside the conditions. */

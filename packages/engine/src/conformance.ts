@@ -1,4 +1,4 @@
-import type { SdkConfig, SdkFlag, SdkSegment } from "@dariise/contracts";
+import type { SdkConfig, SdkFlag, SdkSegment } from "@iwifunni/contracts";
 
 import { bucketFor } from "#bucket";
 import {

@@ -1,5 +1,5 @@
 import { CheckCircle2Icon, GitBranchIcon, LayersIcon } from "lucide-react";
-import type { FlagDependencyGraph, FlagStatus } from "@dariise/contracts";
+import type { FlagDependencyGraph, FlagStatus } from "@iwifunni/contracts";
 import { cn } from "cn";
 
 function GraphNode({

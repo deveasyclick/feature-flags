@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { AuditLogEntry, EnvironmentSummary } from "@dariise/contracts";
+import type { AuditLogEntry, EnvironmentSummary } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

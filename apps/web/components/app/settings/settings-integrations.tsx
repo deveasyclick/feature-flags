@@ -39,7 +39,7 @@ export function SettingsIntegrations({ apps }: { readonly apps: IntegrationApp[]
     <div>
       <SettingsCard
         title="Connected apps"
-        description="Connect Dariise to the tools your team already uses."
+        description="Connect Iwifunni to the tools your team already uses."
       >
         <ul className="grid gap-2 sm:grid-cols-2">
           {apps.map((app) => {

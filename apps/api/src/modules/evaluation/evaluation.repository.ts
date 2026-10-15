@@ -4,7 +4,7 @@ import type {
   EvaluationRule,
   EvaluationSegment,
   EvaluationTarget,
-} from "@dariise/engine";
+} from "@iwifunni/engine";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../db/client.js";

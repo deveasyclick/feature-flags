@@ -5,7 +5,7 @@ import type {
   UpdatePreferencesInput,
   UpdateProfileInput,
   UserPreferences,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { ApiError } from "../../shared/http/errors.js";
 import type { AuthService } from "../auth/index.js";

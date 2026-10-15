@@ -13,7 +13,7 @@ import type {
   EnvironmentConnection,
   EnvironmentDetail,
   EnvironmentSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import {
   environmentColorSwatch,
   environmentColors,

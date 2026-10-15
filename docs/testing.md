@@ -39,11 +39,11 @@ apps/api/src/test/
 
 ## The test database
 
-`loadTestEnv()` assigns `DATABASE_URL` only when nothing already set it, falling back to the default test database `postgresql://postgres:postgres@localhost:5442/dariise_test`. `resetTestDatabase()` creates that database when it is absent, connecting as an administrator to `TEST_ADMIN_DATABASE_URL` when set, otherwise to `postgresql://postgres:postgres@localhost:5442/postgres`. `TEST_ADMIN_DATABASE_URL` is read once when `harness.ts` is imported, so it has to be in the environment before the test file loads; `DATABASE_URL` is read when the reset runs.
+`loadTestEnv()` assigns `DATABASE_URL` only when nothing already set it, falling back to the default test database `postgresql://postgres:postgres@localhost:5442/iwifunni_test`. `resetTestDatabase()` creates that database when it is absent, connecting as an administrator to `TEST_ADMIN_DATABASE_URL` when set, otherwise to `postgresql://postgres:postgres@localhost:5442/postgres`. `TEST_ADMIN_DATABASE_URL` is read once when `harness.ts` is imported, so it has to be in the environment before the test file loads; `DATABASE_URL` is read when the reset runs.
 
-The prerequisite is a reachable PostgreSQL instance and a test database whose name ends in `_test`, with the database created when missing — so the role behind the admin URL needs that privilege. `docker-compose.yml` publishes PostgreSQL on port 5442 but creates only the development database `dariise`; `dariise_test` is the suite's own.
+The prerequisite is a reachable PostgreSQL instance and a test database whose name ends in `_test`, with the database created when missing — so the role behind the admin URL needs that privilege. `docker-compose.yml` publishes PostgreSQL on port 5442 but creates only the development database `iwifunni`; `iwifunni_test` is the suite's own.
 
-Before anything is dropped, `testDatabaseUrl()` takes the pathname out of `DATABASE_URL` and refuses to continue unless the name ends in `_test`, throwing `Refusing to reset the non-test database "<name>". Point DATABASE_URL at a database whose name ends in _test.` That guard is what makes the naming rule load-bearing: the reset drops and recreates the `public` schema, so a developer whose shell exports the development `DATABASE_URL` — `apps/api/.env.example` points at `.../dariise` — would otherwise have the development database wiped by a test run. `loadTestEnv` assigns with `??=`, and `dotenv`, loaded by `src/config/index.ts`, does not override variables already present, so an exported value is exactly the one the guard sees.
+Before anything is dropped, `testDatabaseUrl()` takes the pathname out of `DATABASE_URL` and refuses to continue unless the name ends in `_test`, throwing `Refusing to reset the non-test database "<name>". Point DATABASE_URL at a database whose name ends in _test.` That guard is what makes the naming rule load-bearing: the reset drops and recreates the `public` schema, so a developer whose shell exports the development `DATABASE_URL` — `apps/api/.env.example` points at `.../iwifunni` — would otherwise have the development database wiped by a test run. `loadTestEnv` assigns with `??=`, and `dotenv`, loaded by `src/config/index.ts`, does not override variables already present, so an exported value is exactly the one the guard sees.
 
 ## Isolation by truncation
 
@@ -78,7 +78,7 @@ The test files use dynamic imports for this reason: `harness.test.ts` calls `loa
 | `BETTER_AUTH_SECRET` | `test-secret-that-is-at-least-32-chars-long` |
 | `BETTER_AUTH_URL` | `http://localhost:4000` |
 | `BREVO_API_KEY` | `xkeysib-test-key` |
-| `EMAIL_FROM` | `no-reply@dariise.test` |
+| `EMAIL_FROM` | `no-reply@iwifunni.test` |
 
 ## Routes through app.request()
 

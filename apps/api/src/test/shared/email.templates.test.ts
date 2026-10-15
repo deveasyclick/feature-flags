@@ -90,7 +90,7 @@ describe("verify email code template", () => {
       name: "Ada",
     });
 
-    expect(rendered.subject).toBe("Your Dariise confirmation code");
+    expect(rendered.subject).toBe("Your Iwifunni confirmation code");
     expect(rendered.text).toContain(code);
     expect(rendered.html).toContain(code);
     expect(rendered.text).toContain("10 minutes");

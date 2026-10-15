@@ -1,6 +1,6 @@
-# Dariise Web
+# Iwifunni Web
 
-The Dariise dashboard: a Next.js App Router application for managing feature
+The Iwifunni dashboard: a Next.js App Router application for managing feature
 flags, environments, targeting, and rollouts.
 
 ## Stack
@@ -131,7 +131,7 @@ components/auth/        # Auth shell, shared fields, step path, and the five for
 components/ui/          # shadcn/ui primitives
 components/logo.tsx     # brand mark
 lib/analytics-data.ts   # analytics fixtures — the API has no metrics route
-lib/api.ts              # typed client for the Dariise API
+lib/api.ts              # typed client for the Iwifunni API
 lib/auth-client.ts      # Better Auth client for the browser
 lib/auth.ts             # auth actions: sign in/up, workspace, project creation
 lib/billing-data.ts     # billing fixtures — the API has no billing route
@@ -212,7 +212,7 @@ reach the browser.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | Base URL of the Dariise API, as reached from the browser. Required for production builds. |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | Base URL of the Iwifunni API, as reached from the browser. Required for production builds. |
 | `API_INTERNAL_URL` | `http://localhost:4000` | Server-only. Used by Server Components to call the API without a round trip through the public origin. |
 
 See `docs/architecture.md` §8.3 for the intended cookie and origin setup. Today the
@@ -232,7 +232,7 @@ session cookie never leaves the first-party site.
 ### Where the data comes from
 
 - **`lib/api.ts` is the only way to the API.** It is one thin typed client over
-  `@dariise/contracts`, with no data-fetching framework attached. On the server it
+  `@iwifunni/contracts`, with no data-fetching framework attached. On the server it
   calls `API_INTERNAL_URL` and forwards the incoming session cookie; in the browser
   it calls `NEXT_PUBLIC_API_URL` with `credentials: "include"`. Server Components
   call its resource functions directly, Client Components call the mutations, and

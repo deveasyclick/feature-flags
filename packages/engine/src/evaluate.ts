@@ -1,4 +1,4 @@
-import type { EvaluationReason } from "@dariise/contracts";
+import type { EvaluationReason } from "@iwifunni/contracts";
 
 import { bucketFor } from "#bucket";
 import type {

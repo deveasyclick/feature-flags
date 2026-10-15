@@ -5,7 +5,7 @@ import type {
   ProjectMember,
   ProjectRole,
   UpdateProjectMemberInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { writeAuditLog } from "../../db/audit.js";
 import { db } from "../../db/client.js";

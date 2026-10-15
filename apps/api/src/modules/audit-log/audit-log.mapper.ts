@@ -1,4 +1,4 @@
-import type { AuditAction, AuditLogEntry } from "@dariise/contracts";
+import type { AuditAction, AuditLogEntry } from "@iwifunni/contracts";
 
 import type { AuditLogRow } from "./audit-log.types.js";
 

@@ -2,7 +2,7 @@ import type {
   FlagDetail,
   FlagType,
   FlagVariationValue,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { SdkPreview, sdkSnippet } from "@/components/app/flags/sdk-preview";
 import { formatRelativeTime } from "@/lib/format";
 
@@ -58,7 +58,7 @@ export function FlagFallback({
     <section className="bg-card rounded-lg border p-4">
       <h2 className="text-[13px] font-medium">Evaluation Fallback</h2>
       <p className="text-muted-foreground mt-1 text-[11px]">
-        The value your code uses when the SDK cannot reach Dariise. It is yours
+        The value your code uses when the SDK cannot reach Iwifunni. It is yours
         to choose; the snippet below seeds it from this environment&apos;s off
         value, so a lookup that fails serves what the flag serves while it is
         switched off.

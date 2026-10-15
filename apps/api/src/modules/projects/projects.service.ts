@@ -6,7 +6,7 @@ import {
   type Project,
   type ProjectListQuery,
   type UpdateProjectInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { writeAuditLog } from "../../db/audit.js";
 import { db } from "../../db/client.js";

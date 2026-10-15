@@ -26,7 +26,7 @@ const panelCopy: Record<AuthPanelVariant, PanelCopy> = {
   },
   "getting-started": {
     eyebrow: "Getting started",
-    heading: "Welcome to Dariise.",
+    heading: "Welcome to Iwifunni.",
     body: "Let's set up your first project — one project, one environment, and you're ready to ship.",
   },
 };
@@ -56,7 +56,7 @@ export function AuthBrandPanel({ variant = "product" }: AuthBrandPanelProps) {
           <Logo className="size-4" />
         </span>
         <span className="text-auth-heading text-[13px] font-semibold tracking-[0.2em] uppercase">
-          Dariise
+          Iwifunni
         </span>
       </div>
 
@@ -87,7 +87,7 @@ export function AuthBrandPanel({ variant = "product" }: AuthBrandPanelProps) {
       </div>
 
       <div className="text-auth-muted flex items-center justify-between text-xs">
-        <p>&copy; 2026 Dariise, Inc.</p>
+        <p>&copy; 2026 Iwifunni, Inc.</p>
         <div className="flex items-center gap-2">
           {complianceBadges.map((badge) => (
             <span

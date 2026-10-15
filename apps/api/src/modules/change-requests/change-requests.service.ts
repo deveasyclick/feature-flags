@@ -7,7 +7,7 @@ import {
   type DecideFlagChangeRequestInput,
   type FlagChangeRequest,
   type FlagChangeRequestListQuery,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { writeAuditLog } from "../../db/audit.js";
 import { db } from "../../db/client.js";

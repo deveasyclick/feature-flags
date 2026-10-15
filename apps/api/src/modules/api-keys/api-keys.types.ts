@@ -2,7 +2,7 @@ import type {
   ApiKeyKind,
   ApiKeyScope,
   SdkApiKeyKind,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 export interface ApiKeyRow {
   id: string;

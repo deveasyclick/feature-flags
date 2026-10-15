@@ -1,4 +1,4 @@
-import type { ProjectRole } from "@dariise/contracts";
+import type { ProjectRole } from "@iwifunni/contracts";
 
 /** A project as the access gate needs it: identity only, never its contents. */
 export interface ProjectRef {

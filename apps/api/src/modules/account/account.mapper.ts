@@ -1,4 +1,4 @@
-import type { Theme, UserPreferences } from "@dariise/contracts";
+import type { Theme, UserPreferences } from "@iwifunni/contracts";
 
 import type { PreferencesRow } from "./account.types.js";
 

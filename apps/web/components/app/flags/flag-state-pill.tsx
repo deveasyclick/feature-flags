@@ -1,4 +1,4 @@
-import type { FlagStatus } from "@dariise/contracts";
+import type { FlagStatus } from "@iwifunni/contracts";
 import { Badge } from "@/components/ui/badge";
 
 export type FlagState =

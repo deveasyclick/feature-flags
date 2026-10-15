@@ -18,7 +18,7 @@ import type {
   FlagStatus,
   TargetingRuleInput,
   UpdateFlagVariationInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { db } from "../../db/client.js";
 import {

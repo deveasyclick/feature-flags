@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { CheckIcon, LoaderCircleIcon, SaveIcon } from "lucide-react";
-import type { EnvironmentDetail } from "@dariise/contracts";
+import type { EnvironmentDetail } from "@iwifunni/contracts";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";

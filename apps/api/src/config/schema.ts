@@ -45,7 +45,7 @@ export const ConfigSchema = z
       error: "BREVO_API_KEY is required",
     }),
     EMAIL_FROM: z.email({ error: "EMAIL_FROM must be an email address" }),
-    EMAIL_SENDER_NAME: z.string().trim().min(1).default("Dariise"),
+    EMAIL_SENDER_NAME: z.string().trim().min(1).default("Iwifunni"),
   })
   .transform((value) => ({
     nodeEnv: value.NODE_ENV,

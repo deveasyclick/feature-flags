@@ -1,4 +1,4 @@
-import type { FlagType, FlagVariationValue } from "@dariise/contracts";
+import type { FlagType, FlagVariationValue } from "@iwifunni/contracts";
 
 /**
  * A value as the text a field shows and edits.

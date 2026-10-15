@@ -1,8 +1,8 @@
 {
-  "name": "@dariise/node",
+  "name": "@iwifunni/node",
   "version": "0.1.0",
   "private": true,
-  "description": "Dariise Node.js SDK: evaluate flags locally from one downloaded configuration snapshot.",
+  "description": "Iwifunni Node.js SDK: evaluate flags locally from one downloaded configuration snapshot.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -20,8 +20,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@dariise/contracts": "workspace:*",
-    "@dariise/engine": "workspace:*"
+    "@iwifunni/contracts": "workspace:*",
+    "@iwifunni/engine": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

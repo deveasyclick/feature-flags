@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import type { WorkspaceProfile } from "@dariise/contracts";
+import type { WorkspaceProfile } from "@iwifunni/contracts";
 import { SettingsAppearance } from "@/components/app/settings/settings-appearance";
 import { SettingsDanger } from "@/components/app/settings/settings-danger";
 import { SettingsProfileForm } from "@/components/app/settings/settings-profile-form";

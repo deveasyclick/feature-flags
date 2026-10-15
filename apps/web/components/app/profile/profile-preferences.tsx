@@ -9,7 +9,7 @@ import {
   type EnvironmentSummary,
   type Theme,
   type UpdateNotificationsInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { SettingsCard, SettingsRowLabel } from "@/components/app/settings-card";
 import { ThemeChoice } from "@/components/app/theme-choice";
 import { FieldError } from "@/components/auth/field";

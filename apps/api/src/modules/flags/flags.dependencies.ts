@@ -1,4 +1,4 @@
-import type { FlagDependencyGraph, FlagStatus } from "@dariise/contracts";
+import type { FlagDependencyGraph, FlagStatus } from "@iwifunni/contracts";
 
 import type { DependencyRow, FlagStatusRef } from "./flags.types.js";
 

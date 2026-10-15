@@ -14,7 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { CreatedApiKey } from "@dariise/contracts";
+import type { CreatedApiKey } from "@iwifunni/contracts";
 
 /**
  * Creating a key, and reading it back, all inside one dialog.

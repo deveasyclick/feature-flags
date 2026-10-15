@@ -4,7 +4,7 @@
  * The four access forms and the two onboarding steps call these rather than
  * `authClient` directly, so validation and error shaping happen in one place.
  *
- * Validation runs here, against the shared schemas in `@dariise/contracts`,
+ * Validation runs here, against the shared schemas in `@iwifunni/contracts`,
  * before any request is made. That is the point of the contracts package: the
  * rule that rejects a password lives in one place, and the same rule is enforced
  * again by the API. The forms' own `lib/validation.ts` checks are kept for
@@ -31,7 +31,7 @@ import {
   type FieldErrors,
   type OAuthProvider,
   type ProjectSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import type { ZodType } from "zod";
 
 import { authClient, authErrorMessage } from "@/lib/auth-client";

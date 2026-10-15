@@ -12,7 +12,7 @@ import {
   toFieldErrors,
   toWorkspaceSlug,
   type FieldErrors,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { CreateSegmentHeader } from "@/components/app/segments/segment-headers";
 import {
   countMatchingSampleUsers,

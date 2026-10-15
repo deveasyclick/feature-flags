@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeftIcon, LoaderCircleIcon } from "lucide-react";
-import { PASSWORD_MIN_LENGTH, VERIFICATION_CODE_LENGTH } from "@dariise/contracts";
+import { PASSWORD_MIN_LENGTH, VERIFICATION_CODE_LENGTH } from "@iwifunni/contracts";
 import { AuthCard } from "@/components/auth/auth-card";
 import { Field, FieldError, PasswordField } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
@@ -256,7 +256,7 @@ export function ForgotPasswordForm() {
   return (
     <AuthCard
       title="Reset your password"
-      description="Enter the email you use for Dariise and we'll send you a reset code."
+      description="Enter the email you use for Iwifunni and we'll send you a reset code."
       backLink={<BackToSignIn />}
     >
       <form onSubmit={handleRequest} noValidate className="space-y-4">

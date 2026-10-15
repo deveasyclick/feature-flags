@@ -1,4 +1,4 @@
-# Dariise architecture and commitments
+# Iwifunni architecture and commitments
 
 This document is the durable decision record. It states what was decided and why, then
 points at the reference document that holds the detail.
@@ -16,7 +16,7 @@ Implementation rules — layering, validation, testing and comment policy — li
 
 ## 1. System shape
 
-Dariise is a pnpm monorepo with three workspaces:
+Iwifunni is a pnpm monorepo with three workspaces:
 
 | Workspace            | Responsibility                             |
 | -------------------- | ------------------------------------------ |
@@ -168,7 +168,7 @@ Cross-cutting conventions:
   generic 500 with no internals.
 - URLs use human-readable `key` values; foreign keys use `id`.
 - Better Auth's `/api/auth/*` contract is its own and is never wrapped in the envelope.
-- All Dariise endpoints live under `/v1`.
+- All Iwifunni endpoints live under `/v1`.
 
 → Route inventory, error codes and pagination shape: `docs/api-conventions.md`
 
@@ -235,7 +235,7 @@ Known gaps without an accepted implementation decision.
 
 - **Python and Go SDKs** — the TypeScript engine is the reference implementation; the
   conformance corpus in `sdks/fixtures/conformance.json` is what prevents cross-language
-  drift, and `@dariise/node` is the only SDK built so far.
+  drift, and `@iwifunni/node` is the only SDK built so far.
 - **OpenAPI export** — generate `/v1/openapi.json` from the existing Zod contracts. No
   OpenAPI document is served today.
 - **Rate limiting**

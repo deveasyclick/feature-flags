@@ -8,7 +8,7 @@ import {
   ClockIcon,
   LoaderCircleIcon,
 } from "lucide-react";
-import type { FlagChangeRequest } from "@dariise/contracts";
+import type { FlagChangeRequest } from "@iwifunni/contracts";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { CheckIcon, KeyRoundIcon, LoaderCircleIcon } from "lucide-react";
-import { changePasswordSchema, toFieldErrors } from "@dariise/contracts";
+import { changePasswordSchema, toFieldErrors } from "@iwifunni/contracts";
 import { SettingsCard } from "@/components/app/settings-card";
 import { Field, FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";

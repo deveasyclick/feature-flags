@@ -3,8 +3,8 @@ import {
   type SdkConfig,
   type SdkFlag,
   type SdkSegment,
-} from "@dariise/contracts";
-import { sha256, utf8Bytes } from "@dariise/engine";
+} from "@iwifunni/contracts";
+import { sha256, utf8Bytes } from "@iwifunni/engine";
 
 import { ApiError } from "../../shared/http/errors.js";
 import type { ApiKeyAccessContext } from "../api-keys/index.js";

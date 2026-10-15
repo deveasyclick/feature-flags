@@ -1,7 +1,7 @@
 import type {
   AuditLogEntry,
   AuditLogQuery,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { ApiError } from "../../shared/http/errors.js";
 import { decodeCursor, toPage } from "../../shared/pagination.js";

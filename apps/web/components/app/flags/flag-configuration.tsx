@@ -8,7 +8,7 @@ import {
   LoaderCircleIcon,
   SaveIcon,
 } from "lucide-react";
-import type { FlagDetail, FlagEnvironmentConfig } from "@dariise/contracts";
+import type { FlagDetail, FlagEnvironmentConfig } from "@iwifunni/contracts";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -219,7 +219,7 @@ export function FlagConfiguration({
             </Select>
             <p className="text-muted-foreground text-[11px]">
               Returned while the flag is off in {environmentLabel}, to subjects a
-              rollout passes over, and when the SDK cannot reach Dariise.
+              rollout passes over, and when the SDK cannot reach Iwifunni.
             </p>
           </div>
         </section>

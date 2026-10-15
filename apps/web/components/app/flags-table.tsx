@@ -8,7 +8,7 @@ import { cn } from "cn";
 import type {
   FlagEnvironmentSummary,
   FlagSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import {
   ArchiveFlagDialog,
   RestoreFlagDialog,

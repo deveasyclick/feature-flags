@@ -19,7 +19,7 @@ import type {
   TargetingRule,
   TargetingRuleInput,
   UpdateFlagConfigInput,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { RuleCard } from "@/components/app/flags/rule-card";
 import { AttributeSuggestions } from "@/components/app/targeting/attribute-suggestions";
 import { FieldError } from "@/components/auth/field";

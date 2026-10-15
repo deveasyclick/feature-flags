@@ -1,4 +1,4 @@
-import type { EvaluationReason } from "@dariise/contracts";
+import type { EvaluationReason } from "@iwifunni/contracts";
 
 /** The flag's identity as the engine needs it: a key and a lifecycle status. */
 export interface EvaluationFlag {

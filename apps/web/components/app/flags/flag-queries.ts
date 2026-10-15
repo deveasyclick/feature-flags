@@ -11,7 +11,7 @@ import {
   type FlagVersion,
   type Project,
   type WorkspaceFlagSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   ApiError,

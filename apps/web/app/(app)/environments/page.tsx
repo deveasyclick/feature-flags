@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
-import type { EnvironmentSummary } from "@dariise/contracts";
+import type { EnvironmentSummary } from "@iwifunni/contracts";
 import {
   EnvironmentGrid,
   type EnvironmentCardData,

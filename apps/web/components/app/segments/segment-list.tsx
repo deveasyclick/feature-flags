@@ -10,7 +10,7 @@ import {
   SearchIcon,
 } from "lucide-react";
 import { cn } from "cn";
-import type { SegmentSummary } from "@dariise/contracts";
+import type { SegmentSummary } from "@iwifunni/contracts";
 import { SegmentGlyph } from "@/components/app/segments/segment-glyph";
 import { Button } from "@/components/ui/button";
 import {

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon, LoaderCircleIcon, SaveIcon } from "lucide-react";
-import type { UpdateEnvironmentInput } from "@dariise/contracts";
+import type { UpdateEnvironmentInput } from "@iwifunni/contracts";
 import { Field, FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

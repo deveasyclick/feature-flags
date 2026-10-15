@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LoaderCircleIcon, PlusIcon } from "lucide-react";
-import { STARTER_ENVIRONMENTS } from "@dariise/contracts";
+import { STARTER_ENVIRONMENTS } from "@iwifunni/contracts";
 import { cn } from "cn";
 import {
   environmentColors,

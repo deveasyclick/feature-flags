@@ -22,19 +22,42 @@ Start both services with `docker compose up -d`.
 
 | Service  | Image         | Container          | Host port       | Volume                  |
 | -------- | ------------- | ------------------ | --------------- | ----------------------- |
-| postgres | `postgres:17` | `dariise-postgres` | `5442` → `5432` | `dariise-postgres-data` |
-| redis    | `redis:8`     | `dariise-redis`    | `6389` → `6379` | none                    |
+| postgres | `postgres:17` | `iwifunni-postgres` | `5442` → `5432` | `iwifunni-postgres-data` |
+| redis    | `redis:8`     | `iwifunni-redis`    | `6389` → `6379` | none                    |
 
 The host ports are deliberately non-default: `docker-compose.yml` records that this machine already
 runs an unrelated PostgreSQL on 5432/5435 and Redis on 6379/6380, so reusing those would mean sharing
 credentials with another project or silently connecting to it.
 
-PostgreSQL mounts the named volume `dariise-postgres-data`; Redis has none — it is cache-only, nothing
+PostgreSQL mounts the named volume `iwifunni-postgres-data`; Redis has none — it is cache-only, nothing
 there needs to survive a restart, and treating it as durable would invite depending on it, which
 [docs/architecture.md](architecture.md) §8.1 rules out.
-The credentials (`postgres` / `postgres`, database `dariise`) are development-only and match the
+The credentials (`postgres` / `postgres`, database `iwifunni`) are development-only and match the
 default `DATABASE_URL`.
 
+## Coming from the Dariise name
+
+The project was renamed from Dariise to iwifunni. Everything in a checkout moved with it — the
+package scope (`@iwifunni/contracts`, `@iwifunni/engine`, `@iwifunni/node`), the databases, the
+environment variables and the copy — but a database that already exists and a dashboard whose
+browser cookies are already set are outside the checkout, so each needs one deliberate step.
+
+Rename the databases rather than recreating them. `ALTER DATABASE` moves the files and keeps every
+row; dropping and recreating would silently start you from an empty schema:
+
+```sh
+docker exec dariise-postgres psql -U postgres -c 'ALTER DATABASE dariise RENAME TO iwifunni'
+docker exec dariise-postgres psql -U postgres -c 'ALTER DATABASE dariise_test RENAME TO iwifunni_test'
+```
+
+Substitute the container name if yours differs — the running container keeps the name it was
+created with across a rename of `container_name` in `docker-compose.yml`, so an existing stack is
+still `dariise-postgres` until its next `docker compose up`.
+
+Two consequences are expected and neither is data loss: the dashboard's `iwifunni.project` and
+`iwifunni.environment` cookies are new names, so the first visit after the rename asks for a project
+and environment again; and a deployment carries `DATABASE_URL`, `EMAIL_FROM` and `EMAIL_SENDER_NAME`
+in its own environment, so those are changed where it is configured rather than in the repository.
 ## Configuration
 
 Each app keeps its environment file beside it, copied from the committed template:
@@ -77,7 +100,7 @@ or invalid value and the process exits at startup.
 | `GOOGLE_CLIENT_SECRET` | no       | —                       | Google OAuth client secret.                                                           |
 | `BREVO_API_KEY`        | yes      | —                       | Brevo transactional email key; trimmed, at least 5 characters.                         |
 | `EMAIL_FROM`           | yes      | —                       | Sender address for verification and reset mail; must be an email address.              |
-| `EMAIL_SENDER_NAME`    | no       | `Dariise`               | Sender name a recipient sees.                                                          |
+| `EMAIL_SENDER_NAME`    | no       | `Iwifunni`               | Sender name a recipient sees.                                                          |
 
 Validated at startup: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BREVO_API_KEY`, `EMAIL_FROM`.
 

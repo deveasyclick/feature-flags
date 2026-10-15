@@ -1,7 +1,7 @@
 import {
   addProjectMemberSchema,
   updateProjectMemberSchema,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import type { Context } from "hono";
 
 import { requireWorkspace } from "../../middleware/authorization.js";

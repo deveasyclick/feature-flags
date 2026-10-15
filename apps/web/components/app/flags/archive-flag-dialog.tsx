@@ -8,7 +8,7 @@ import {
   ArchiveRestoreIcon,
   LoaderCircleIcon,
 } from "lucide-react";
-import type { FlagSummary } from "@dariise/contracts";
+import type { FlagSummary } from "@iwifunni/contracts";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import {

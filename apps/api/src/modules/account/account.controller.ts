@@ -3,7 +3,7 @@ import {
   updateNotificationsSchema,
   updatePreferencesSchema,
   updateProfileSchema,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import type { Context } from "hono";
 
 import { requireSession, requireWorkspace } from "../../middleware/authorization.js";

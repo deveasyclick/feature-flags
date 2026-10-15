@@ -1,6 +1,6 @@
 # Authentication
 
-Dariise delegates identity to Better Auth and adds no password hashing, session store
+Iwifunni delegates identity to Better Auth and adds no password hashing, session store
 or link-based confirmation of its own. This covers the identity layer, the emailed
 codes, social sign-in, the two credential kinds and the origin arrangement today.
 
@@ -21,7 +21,7 @@ on — chiefly `auth.api.getVerificationOTP`, which reads a code back the way a
 recipient would (`apps/api/src/test/harness.ts`).
 
 It is mounted as a raw pass-through,
-`routes.all("/api/auth/*", (c) => authHandler(c.req.raw))`. Dariise does **not** wrap
+`routes.all("/api/auth/*", (c) => authHandler(c.req.raw))`. Iwifunni does **not** wrap
 this error contract: the responses carry Better Auth's own `{ code, message }` shape
 rather than the API envelope; see `docs/api-conventions.md`.
 
@@ -67,7 +67,7 @@ are six digits, expire in ten minutes and are stored encrypted under the app sec
 `EmailService.send`, which renders it and hands it to the `EmailTransport` — Brevo's
 HTTP API, where `BrevoTransport` wraps `@getbrevo/brevo`'s `BrevoClient`.
 `BREVO_API_KEY` and `EMAIL_FROM` are required and validated at startup by
-`ConfigSchema`; `EMAIL_SENDER_NAME` defaults to `Dariise`, and there is no
+`ConfigSchema`; `EMAIL_SENDER_NAME` defaults to `Iwifunni`, and there is no
 `emailEnabled` flag.
 
 The endpoints are `/api/auth/email-otp/send-verification-otp`, `/verify-email`,

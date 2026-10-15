@@ -14,7 +14,7 @@ import {
   type TargetingOperator,
   type TargetingRule,
   type WorkspaceFlagSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import type {
   EnvironmentRef,

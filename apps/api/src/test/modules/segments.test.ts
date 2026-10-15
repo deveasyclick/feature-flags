@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { SegmentDetail } from "@dariise/contracts";
+import type { SegmentDetail } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

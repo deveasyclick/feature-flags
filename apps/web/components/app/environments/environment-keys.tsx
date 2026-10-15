@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "cn";
-import type { ApiKey, EnvironmentConnection } from "@dariise/contracts";
+import type { ApiKey, EnvironmentConnection } from "@iwifunni/contracts";
 import { CopyButton } from "@/components/app/copy-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

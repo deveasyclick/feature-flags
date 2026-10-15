@@ -1,4 +1,4 @@
-import type { FlagSummary } from "@dariise/contracts";
+import type { FlagSummary } from "@iwifunni/contracts";
 import { auditActionMeta } from "@/components/app/audit-log/audit-action-meta";
 import { listProjectFlags } from "@/components/app/flags/flag-queries";
 import type {

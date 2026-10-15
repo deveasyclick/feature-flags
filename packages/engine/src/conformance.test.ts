@@ -15,7 +15,7 @@ function committed(): unknown {
 
 describe("conformance corpus", () => {
   it("is what the reference engine generates today", () => {
-    // Regenerate with `pnpm --filter @dariise/engine fixtures`. A failure here
+    // Regenerate with `pnpm --filter @iwifunni/engine fixtures`. A failure here
     // means the algorithm moved and every SDK's fixture test has to be run.
     expect(committed()).toEqual(buildConformance());
   });

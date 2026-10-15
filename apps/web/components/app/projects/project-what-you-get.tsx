@@ -5,7 +5,7 @@ import {
   ServerIcon,
   type LucideIcon,
 } from "lucide-react";
-import { STARTER_ENVIRONMENTS } from "@dariise/contracts";
+import { STARTER_ENVIRONMENTS } from "@iwifunni/contracts";
 import { cn } from "cn";
 import { SectionCard } from "@/components/app/page-header";
 

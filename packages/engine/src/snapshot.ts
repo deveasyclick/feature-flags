@@ -1,4 +1,4 @@
-import type { SdkConfig } from "@dariise/contracts";
+import type { SdkConfig } from "@iwifunni/contracts";
 
 import { evaluate } from "#evaluate";
 import {

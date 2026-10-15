@@ -1,6 +1,6 @@
 # Domain model
 
-The persistent shape of Dariise: the tenancy tree, where a flag actually sits, how keys
+The persistent shape of Iwifunni: the tenancy tree, where a flag actually sits, how keys
 differ from ids, per-entity lifecycle, the table inventory, and the audit trail.
 
 Access control is `docs/authorization.md`; flag configuration anatomy is `docs/flags.md`;
@@ -138,7 +138,7 @@ default list unless `includeArchived` is requested, and there is no unarchive ro
 ## Table inventory
 
 Every table is defined with `pgTable` in `apps/api/src/db/schema/`. Identity and auth
-tables are Better Auth's shape, not Dariise's.
+tables are Better Auth's shape, not Iwifunni's.
 
 **Identity and auth (Better Auth)**
 

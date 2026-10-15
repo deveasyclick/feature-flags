@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { MeResponse } from "@dariise/contracts";
+import type { MeResponse } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

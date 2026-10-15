@@ -45,7 +45,7 @@ describe("EmailService", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0]?.to).toBe("ada@example.com");
     expect(messages[0]?.toName).toBe("Ada");
-    expect(messages[0]?.subject).toBe("Your Dariise password reset code");
+    expect(messages[0]?.subject).toBe("Your Iwifunni password reset code");
     expect(messages[0]?.text).toContain(code);
     expect(messages[0]?.html).toContain(code);
   });

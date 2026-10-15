@@ -1,6 +1,6 @@
 "use client";
 
-import type { FlagType, FlagVariationValue } from "@dariise/contracts";
+import type { FlagType, FlagVariationValue } from "@iwifunni/contracts";
 import { ChevronDownIcon } from "lucide-react";
 import { cn } from "cn";
 import { VariationValueInput } from "@/components/app/flags/variation-value-input";

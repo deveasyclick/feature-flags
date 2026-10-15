@@ -3,7 +3,7 @@ import { cn } from "cn";
 import { auditActionMeta } from "@/components/app/audit-log/audit-action-meta";
 import { sectionActionClass, SectionCard } from "@/components/app/page-header";
 import { ProgressBar } from "@/components/app/progress-bar";
-import type { AuditAction } from "@dariise/contracts";
+import type { AuditAction } from "@iwifunni/contracts";
 
 export interface ActiveRollout {
   flagKey: string;

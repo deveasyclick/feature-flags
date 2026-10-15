@@ -5,7 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type {
   FlagChangeRequest,
   FlagEnvironmentConfig,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

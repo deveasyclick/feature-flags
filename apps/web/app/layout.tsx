@@ -16,12 +16,12 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Dariise",
-    template: "%s · Dariise",
+    default: "Iwifunni",
+    template: "%s · Iwifunni",
   },
   description:
     "Feature management and progressive delivery for modern applications. Control features without deploying, target users, and roll out gradually.",
-  applicationName: "Dariise",
+  applicationName: "Iwifunni",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

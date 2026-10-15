@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import type { WorkspaceSecuritySettings } from "@dariise/contracts";
+import type { WorkspaceSecuritySettings } from "@iwifunni/contracts";
 import { SettingsSecurity } from "@/components/app/settings/settings-security";
 import { settingsDescription } from "@/components/app/settings/settings-options";
 import * as api from "@/lib/api";

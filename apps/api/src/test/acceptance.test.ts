@@ -7,7 +7,7 @@ import type {
   EvaluationResult,
   FlagSummary,
   ProjectMember,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

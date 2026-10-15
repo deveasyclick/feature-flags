@@ -1,7 +1,7 @@
 import {
   MAX_PAGE_SIZE,
   type EnvironmentSummary,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { auditActionMeta } from "@/components/app/audit-log/audit-action-meta";
 import type {
   AuditActorOption,

@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoaderCircleIcon } from "lucide-react";
-import { VERIFICATION_CODE_LENGTH } from "@dariise/contracts";
+import { VERIFICATION_CODE_LENGTH } from "@iwifunni/contracts";
 import { AuthCard } from "@/components/auth/auth-card";
 import { GitHubIcon, GoogleIcon } from "@/components/auth/brand-icons";
 import {
@@ -258,7 +258,7 @@ export function SignUpForm({
   return (
     <AuthCard
       title="Create your account"
-      description="Set up your Dariise account. We'll email you a code to confirm your address, then you'll create a workspace and your first project."
+      description="Set up your Iwifunni account. We'll email you a code to confirm your address, then you'll create a workspace and your first project."
     >
       <div className="space-y-3">
         <Button

@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { EnvironmentSummary } from "@dariise/contracts";
+import type { EnvironmentSummary } from "@iwifunni/contracts";
 
 /**
  * The "more actions" menu for an environment.

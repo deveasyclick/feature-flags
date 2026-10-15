@@ -7,7 +7,7 @@ import type {
   FlagSummary,
   Project,
   ProjectMember,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import {
   environmentColorSwatch,
   environmentColorTone,

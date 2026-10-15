@@ -1,4 +1,4 @@
-# Local development infrastructure for Dariise.
+# Local development infrastructure for Iwifunni.
 #
 # Ports are deliberately non-default: this machine already runs an unrelated
 # PostgreSQL on 5432/5435 and Redis on 6379/6380, and reusing those would mean
@@ -9,25 +9,25 @@
 services:
   postgres:
     image: postgres:17
-    container_name: dariise-postgres
+    container_name: iwifunni-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: dariise
+      POSTGRES_DB: iwifunni
     ports:
       - "5442:5432"
     volumes:
-      - dariise-postgres-data:/var/lib/postgresql/data
+      - iwifunni-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d dariise"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d iwifunni"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:8
-    container_name: dariise-redis
+    container_name: iwifunni-redis
     restart: unless-stopped
     # Cache-only. No volume: nothing here needs to survive a restart, and
     # treating it as durable would invite depending on it (docs/architecture.md §8.1).
@@ -40,4 +40,4 @@ services:
       retries: 10
 
 volumes:
-  dariise-postgres-data:
+  iwifunni-postgres-data:

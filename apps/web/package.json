@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@dariise/contracts": "workspace:*",
+    "@iwifunni/contracts": "workspace:*",
     "@sentry/nextjs": "^11.7.0",
     "better-auth": "^1.7.5",
     "class-variance-authority": "^0.7.1",

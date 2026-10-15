@@ -6,7 +6,7 @@ import {
   toFieldErrors,
   updateWorkspaceSecuritySchema,
   type WorkspaceSecuritySettings,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { SettingsCard, SettingsRowLabel } from "@/components/app/settings-card";
 import {
   auditRetentionOptions,

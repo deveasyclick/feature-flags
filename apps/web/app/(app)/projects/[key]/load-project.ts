@@ -1,5 +1,5 @@
 import { cache } from "react";
-import type { Project } from "@dariise/contracts";
+import type { Project } from "@iwifunni/contracts";
 import { findProject } from "@/lib/scope";
 
 /**

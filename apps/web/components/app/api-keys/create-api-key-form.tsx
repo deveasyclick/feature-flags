@@ -8,7 +8,7 @@ import {
   type CreateApiKeyInput,
   type CreatedApiKey,
   type FieldErrors,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import {
   KeyShownOnceCard,
   SecurityBestPracticesCard,

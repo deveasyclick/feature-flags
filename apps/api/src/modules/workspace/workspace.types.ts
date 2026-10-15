@@ -1,7 +1,7 @@
 import type {
   WorkspaceProfile,
   WorkspaceSecuritySettings,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 export interface WorkspaceRow {
   id: string;
@@ -10,7 +10,7 @@ export interface WorkspaceRow {
   metadata: string | null;
 }
 
-/** What Dariise stores in the organization's free-form metadata column. */
+/** What Iwifunni stores in the organization's free-form metadata column. */
 export interface WorkspaceMetadata {
   defaultEnvironmentId?: string | null;
   timezone?: string;

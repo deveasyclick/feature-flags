@@ -1,5 +1,5 @@
 import { FlaskConicalIcon, UserCheckIcon } from "lucide-react";
-import type { TargetingCondition } from "@dariise/contracts";
+import type { TargetingCondition } from "@iwifunni/contracts";
 import {
   countMatchingSampleUsers,
   matchedAttributes,

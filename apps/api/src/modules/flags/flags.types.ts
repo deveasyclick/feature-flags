@@ -1,4 +1,4 @@
-import type { FlagStatus, FlagType } from "@dariise/contracts";
+import type { FlagStatus, FlagType } from "@iwifunni/contracts";
 
 import type { EnvironmentRef } from "../../shared/types/environment.js";
 import type { ProjectRef } from "../project-access/index.js";

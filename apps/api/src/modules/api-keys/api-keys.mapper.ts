@@ -3,7 +3,7 @@ import type {
   ApiKeyKind,
   ApiKeyScope,
   CreatedApiKey,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import type { ApiKeyRow } from "./api-keys.types.js";
 

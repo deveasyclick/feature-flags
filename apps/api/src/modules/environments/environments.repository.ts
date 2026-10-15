@@ -1,4 +1,4 @@
-import { SDK_API_KEY_KINDS } from "@dariise/contracts";
+import { SDK_API_KEY_KINDS } from "@iwifunni/contracts";
 import { and, asc, count, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 
 import { db } from "../../db/client.js";

@@ -1,4 +1,4 @@
-import type { ProjectSummary } from "@dariise/contracts";
+import type { ProjectSummary } from "@iwifunni/contracts";
 
 import type { Transaction } from "../../shared/types/db.js";
 

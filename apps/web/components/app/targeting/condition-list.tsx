@@ -5,7 +5,7 @@ import {
   TARGETING_ATTRIBUTE_TYPES,
   type TargetingAttributeType,
   type TargetingOperator,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 import { AttributeSelect } from "@/components/app/targeting/attribute-select";
 import { FieldError } from "@/components/auth/field";
 import { Input } from "@/components/ui/input";

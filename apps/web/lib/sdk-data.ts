@@ -1,7 +1,7 @@
 /**
  * SDK install and usage snippets.
  *
- * These are documentation, not API data: only `@dariise/node` exists today, so
+ * These are documentation, not API data: only `@iwifunni/node` exists today, so
  * the rest are the shape each SDK is meant to ship with and are maintained here
  * until the packages publish their own. The connection values the screen pairs
  * them with — key, endpoints — come from the API, via
@@ -48,11 +48,11 @@ const sdkOptions: SdkOption[] = [
     label: "Node.js",
     scope: "Server-side",
     steps: {
-      install: "npm install @dariise/node  # not on npm yet — link it from the workspace",
-      initialize: `import { FeatureFlags } from "@dariise/node";
+      install: "npm install @iwifunni/node  # not on npm yet — link it from the workspace",
+      initialize: `import { FeatureFlags } from "@iwifunni/node";
 
 const flags = new FeatureFlags({
-  sdkKey: process.env.DARIISE_SDK_KEY,
+  sdkKey: process.env.IWIFUNNI_SDK_KEY,
   environment: "production",
 });
 
@@ -73,11 +73,11 @@ const maxItems = flags.getNumber("max-items", 10);`,
     label: "Python",
     scope: "Server-side",
     steps: {
-      install: "pip install dariise",
-      initialize: `from dariise import FeatureFlags
+      install: "pip install iwifunni",
+      initialize: `from iwifunni import FeatureFlags
 
 flags = FeatureFlags(
-    sdk_key=os.environ["DARIISE_SDK_KEY"],
+    sdk_key=os.environ["IWIFUNNI_SDK_KEY"],
     environment="production",
 )
 flags.initialize()
@@ -94,9 +94,9 @@ max_items = flags.get_number("max-items", 10)`,
     label: "Go",
     scope: "Server-side",
     steps: {
-      install: "go get github.com/dariise/dariise-go",
+      install: "go get github.com/iwifunni/iwifunni-go",
       initialize: `flags, err := featureflags.New(featureflags.Config{
-    SDKKey:      os.Getenv("DARIISE_SDK_KEY"),
+    SDKKey:      os.Getenv("IWIFUNNI_SDK_KEY"),
     Environment: "production",
 })
 if err != nil {
@@ -118,11 +118,11 @@ maxItems := flags.GetNumber("max-items", 10)`,
     label: "React",
     scope: "Client-side",
     steps: {
-      install: "npm install @dariise/react",
-      initialize: `import { FeatureFlagsProvider } from "@dariise/react";
+      install: "npm install @iwifunni/react",
+      initialize: `import { FeatureFlagsProvider } from "@iwifunni/react";
 
 <FeatureFlagsProvider
-  sdkKey={process.env.NEXT_PUBLIC_DARIISE_SDK_KEY}
+  sdkKey={process.env.NEXT_PUBLIC_IWIFUNNI_SDK_KEY}
   environment="production"
 >
   <App />
@@ -137,9 +137,9 @@ return on ? <NewCheckout /> : <Checkout />;`,
     label: "Java",
     scope: "Server-side",
     steps: {
-      install: `implementation("dev.dariise:dariise-java:1.0.0")`,
+      install: `implementation("dev.iwifunni:iwifunni-java:1.0.0")`,
       initialize: `FeatureFlags flags = FeatureFlags.builder()
-    .sdkKey(System.getenv("DARIISE_SDK_KEY"))
+    .sdkKey(System.getenv("IWIFUNNI_SDK_KEY"))
     .environment("production")
     .build();
 
@@ -157,11 +157,11 @@ int maxItems = flags.getNumber("max-items", 10);`,
     label: "Ruby",
     scope: "Server-side",
     steps: {
-      install: "gem install dariise",
-      initialize: `require "dariise"
+      install: "gem install iwifunni",
+      initialize: `require "iwifunni"
 
-flags = Dariise::FeatureFlags.new(
-  sdk_key: ENV["DARIISE_SDK_KEY"],
+flags = Iwifunni::FeatureFlags.new(
+  sdk_key: ENV["IWIFUNNI_SDK_KEY"],
   environment: "production",
 )
 flags.initialize
@@ -177,11 +177,11 @@ max_items = flags.get_number("max-items", 10)`,
     label: "PHP",
     scope: "Server-side",
     steps: {
-      install: "composer require dariise/dariise",
-      initialize: `use Dariise\\FeatureFlags;
+      install: "composer require iwifunni/iwifunni",
+      initialize: `use Iwifunni\\FeatureFlags;
 
 $flags = new FeatureFlags(
-    getenv("DARIISE_SDK_KEY"),
+    getenv("IWIFUNNI_SDK_KEY"),
     "production",
 );
 $flags->initialize();
@@ -199,12 +199,12 @@ $maxItems = $flags->getNumber("max-items", 10);`,
     label: ".NET",
     scope: "Server-side",
     steps: {
-      install: "dotnet add package Dariise",
-      initialize: `using Dariise;
+      install: "dotnet add package Iwifunni",
+      initialize: `using Iwifunni;
 
 var flags = new FeatureFlags(new FeatureFlagsOptions
 {
-    SdkKey = Environment.GetEnvironmentVariable("DARIISE_SDK_KEY"),
+    SdkKey = Environment.GetEnvironmentVariable("IWIFUNNI_SDK_KEY"),
     Environment = "production",
 });
 

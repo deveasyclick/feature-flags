@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CheckCheckIcon, ChevronLeftIcon } from "lucide-react";
 import { cn } from "cn";
-import type { FlagDetail } from "@dariise/contracts";
+import type { FlagDetail } from "@iwifunni/contracts";
 import { EditFlagButton } from "@/components/app/flags/edit-flag-dialog";
 import { FlagStatusBadge } from "@/components/app/flags/flag-state-pill";
 import { Badge } from "@/components/ui/badge";

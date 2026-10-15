@@ -23,7 +23,7 @@ function readApiUrl(): string {
   if (!raw) {
     if (process.env.NODE_ENV === "production") {
       throw new Error(
-        "NEXT_PUBLIC_API_URL must be set for production builds. Copy apps/web/.env.example to apps/web/.env and provide the Dariise API base URL.",
+        "NEXT_PUBLIC_API_URL must be set for production builds. Copy apps/web/.env.example to apps/web/.env and provide the Iwifunni API base URL.",
       );
     }
 

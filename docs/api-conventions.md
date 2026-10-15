@@ -1,6 +1,6 @@
 # API conventions
 
-Dariise's HTTP surface is versioned, schema-first and uniformly shaped: a route lives under `/v1`, parses a
+Iwifunni's HTTP surface is versioned, schema-first and uniformly shaped: a route lives under `/v1`, parses a
 `packages/contracts` schema, calls one service method, and fails through one error envelope. Decisions:
 `docs/architecture.md §7`; role matrix: `docs/authorization.md`.
 
@@ -15,7 +15,7 @@ Its `imports` map exposes twenty-one subpaths, each resolving to `./src/<name>.t
 `#workspace`.
 
 The `exports` map publishes only the root entry, `.` → `./src/index.ts`, which re-exports every subpath.
-Consumers import `@dariise/contracts`; a `#name` specifier resolves only inside the package, where one contract
+Consumers import `@iwifunni/contracts`; a `#name` specifier resolves only inside the package, where one contract
 file imports another (`flag.ts` uses `#environment`, `#pagination`, `#slug`).
 
 ## Module layout and layering
@@ -125,7 +125,7 @@ module router. Below, `…` stands for `/v1/projects/:projectKey/flags/:flagKey`
 
 ## The error contract
 
-Every Dariise failure is rendered by `errorResponse`, the single handler passed to `app.onError`. A thrown
+Every Iwifunni failure is rendered by `errorResponse`, the single handler passed to `app.onError`. A thrown
 `ApiError` becomes `{ error: { code, message, details? } }`; `details` appears only when the factory was given one.
 
 | Factory | Status | Code value | Details |
@@ -183,7 +183,7 @@ the resource exists and enable enumeration. 403 remains the answer where the cal
 
 ## Versioning and the OpenAPI gap
 
-All Dariise endpoints live under `/v1`; the only paths outside it are Better Auth's `/api/auth/*` and the operational `/healthz` and `/readyz`.
+All Iwifunni endpoints live under `/v1`; the only paths outside it are Better Auth's `/api/auth/*` and the operational `/healthz` and `/readyz`.
 
 No OpenAPI document is served: there is no `/v1/openapi.json` route, and no specification is generated from the Zod contracts.
 Generating one from those contracts is an open gap in `docs/architecture.md §9`; the other gaps on that list are not API conventions.

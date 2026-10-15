@@ -1,5 +1,5 @@
 import { GitCompareArrowsIcon } from "lucide-react";
-import type { FlagVersion } from "@dariise/contracts";
+import type { FlagVersion } from "@iwifunni/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

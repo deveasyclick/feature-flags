@@ -1,5 +1,5 @@
-import type { EvaluateRequest, EvaluationResult } from "@dariise/contracts";
-import { evaluate as evaluateFlag, OFF_VARIATION } from "@dariise/engine";
+import type { EvaluateRequest, EvaluationResult } from "@iwifunni/contracts";
+import { evaluate as evaluateFlag, OFF_VARIATION } from "@iwifunni/engine";
 
 import type { EvaluationRepository } from "./evaluation.repository.js";
 

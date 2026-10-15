@@ -10,7 +10,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { cn } from "cn";
-import type { FlagVariation, SegmentSummary } from "@dariise/contracts";
+import type { FlagVariation, SegmentSummary } from "@iwifunni/contracts";
 import { ConditionList } from "@/components/app/targeting/condition-list";
 import { FieldError } from "@/components/auth/field";
 import { Input } from "@/components/ui/input";

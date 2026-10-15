@@ -1,7 +1,7 @@
 import type { SVGProps } from "react";
 
 /**
- * Dariise brand mark: a flag pivoting on a mast, representing a feature being
+ * Iwifunni brand mark: a flag pivoting on a mast, representing a feature being
  * toggled and progressively released. Inherits `currentColor`.
  */
 export function Logo({ className, ...props }: SVGProps<SVGSVGElement>) {

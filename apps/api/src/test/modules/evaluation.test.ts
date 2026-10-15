@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { EvaluationResult } from "@dariise/contracts";
+import type { EvaluationResult } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

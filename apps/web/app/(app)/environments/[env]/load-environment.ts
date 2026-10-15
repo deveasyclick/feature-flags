@@ -1,5 +1,5 @@
 import { cache } from "react";
-import type { EnvironmentDetail } from "@dariise/contracts";
+import type { EnvironmentDetail } from "@iwifunni/contracts";
 import * as api from "@/lib/api";
 
 /**

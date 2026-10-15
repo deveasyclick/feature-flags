@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { CreatedApiKey, SdkConfig } from "@dariise/contracts";
+import type { CreatedApiKey, SdkConfig } from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

@@ -1,8 +1,8 @@
-# Dariise
+# Iwifunni
 
 > Feature management and progressive delivery for modern applications.
 
-Dariise is a developer-focused feature management platform for safely controlling
+Iwifunni is a developer-focused feature management platform for safely controlling
 application features without requiring a new deployment.
 
 It lets teams create feature flags, manage them across environments, target specific users,
@@ -86,7 +86,7 @@ Instead of:
 Build → Deploy → Everyone gets the feature
 ```
 
-Dariise enables:
+Iwifunni enables:
 
 ```text
 Build → Deploy → Gradually release
@@ -105,7 +105,7 @@ and quickly disable functionality without deploying new code.
 
 ## Architecture
 
-Dariise is a pnpm monorepo: a Next.js dashboard, a Hono API, and a shared contract package
+Iwifunni is a pnpm monorepo: a Next.js dashboard, a Hono API, and a shared contract package
 that both depend on.
 
 ```text
@@ -183,7 +183,7 @@ typed client over the shared contracts.
 ## Project Structure
 
 ```text
-dariise/
+iwifunni/
 │
 ├── apps/
 │   ├── web/                      # Next.js dashboard
@@ -256,9 +256,11 @@ installed locally.
 ### Clone the repository
 
 ```bash
-git clone https://github.com/your-username/dariise.git
+# The repository keeps its original name; the directory it creates is not the
+# project name.
+git clone https://github.com/deveasyclick/feature-flags.git
 
-cd dariise
+cd feature-flags
 ```
 
 ### Start infrastructure
@@ -369,7 +371,7 @@ is read through the app's config module — `apps/api/src/config/index.ts` or
 | `NODE_ENV`           | No       | `development`           | `development`, `test` or `production`                                  |
 | `DATABASE_POOL_MAX`  | No       | `10`                    | Max connections this process opens; keep instances × this below the server's limit |
 | `REDIS_URL`          | No       | —                       | Configuration cache only; the API starts and serves with Redis unreachable |
-| `EMAIL_SENDER_NAME`  | No       | `Dariise`               | Sender name shown in the recipient's inbox                             |
+| `EMAIL_SENDER_NAME`  | No       | `Iwifunni`               | Sender name shown in the recipient's inbox                             |
 | `GITHUB_CLIENT_ID`   | No       | —                       | GitHub sign-in; needs both GitHub values or the provider is disabled  |
 | `GITHUB_CLIENT_SECRET`| No      | —                       | GitHub sign-in                                                         |
 | `GOOGLE_CLIENT_ID`   | No       | —                       | Google sign-in; needs both Google values or the provider is disabled  |

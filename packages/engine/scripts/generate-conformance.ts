@@ -7,7 +7,7 @@ import { buildConformance } from "../src/conformance.js";
 /**
  * Writes the conformance corpus every SDK is tested against.
  *
- * Run with `pnpm --filter @dariise/engine fixtures` after changing the engine:
+ * Run with `pnpm --filter @iwifunni/engine fixtures` after changing the engine:
  * the generated file is committed, and the engine's own test fails while it is
  * out of date, so the other languages cannot be left behind silently.
  */

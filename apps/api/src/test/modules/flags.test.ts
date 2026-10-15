@@ -7,7 +7,7 @@ import type {
   FlagEnvironmentConfig,
   FlagSummary,
   FlagVersion,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

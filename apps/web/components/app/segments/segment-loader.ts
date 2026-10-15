@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import type { SegmentDetail, SegmentFlag } from "@dariise/contracts";
+import type { SegmentDetail, SegmentFlag } from "@iwifunni/contracts";
 
 import { ApiError, segments } from "@/lib/api";
 

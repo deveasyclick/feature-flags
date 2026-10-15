@@ -8,7 +8,7 @@ import type {
   EnvironmentSummary,
   FlagDetail,
   FlagEnvironmentConfig,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import {
   closeTestDatabase,

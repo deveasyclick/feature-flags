@@ -1,11 +1,11 @@
-import { sdkConfigSchema, type SdkConfig } from "@dariise/contracts";
+import { sdkConfigSchema, type SdkConfig } from "@iwifunni/contracts";
 import {
   evaluateSnapshot,
   notFoundOutcome,
   servedValue,
   toSubject,
   type EvaluationOutcome,
-} from "@dariise/engine";
+} from "@iwifunni/engine";
 
 import { FeatureFlagsError, toError } from "#errors";
 
@@ -36,7 +36,7 @@ export interface FeatureFlagsOptions {
 }
 
 /**
- * The Dariise Node.js SDK.
+ * The Iwifunni Node.js SDK.
  *
  * `initialize()` downloads one environment's configuration and every read after
  * that is decided locally, so `isOn` is synchronous and no flag read costs a
@@ -216,7 +216,7 @@ export class FeatureFlags {
       if (!response.ok) {
         throw new FeatureFlagsError(
           "invalid_response",
-          `The Dariise API answered ${response.status}.`,
+          `The Iwifunni API answered ${response.status}.`,
         );
       }
 

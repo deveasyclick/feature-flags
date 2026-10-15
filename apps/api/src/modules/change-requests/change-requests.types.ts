@@ -1,7 +1,7 @@
 import type {
   ChangeRequestStatus,
   FlagChangePayload,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import type { Transaction } from "../../shared/types/db.js";
 

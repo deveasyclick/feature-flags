@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { FlagVariationValue } from "@dariise/contracts";
+import type { FlagVariationValue } from "@iwifunni/contracts";
 import { ArchiveFlagAction } from "@/components/app/flags/archive-flag-dialog";
 import { FlagApprovalPanel } from "@/components/app/flags/flag-approval";
 import { FlagConfiguration } from "@/components/app/flags/flag-configuration";

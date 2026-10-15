@@ -1,4 +1,4 @@
-import type { ProjectRole } from "@dariise/contracts";
+import type { ProjectRole } from "@iwifunni/contracts";
 
 import { ApiError } from "../../shared/http/errors.js";
 import type { ProjectAccessRepository } from "./project-access.repository.js";

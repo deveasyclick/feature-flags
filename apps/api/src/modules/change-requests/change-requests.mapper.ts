@@ -5,7 +5,7 @@ import {
   type ChangeRequestStatus,
   type FlagChangePayload,
   type FlagChangeRequest,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import type { ChangeRequestDetailRow } from "./change-requests.types.js";
 

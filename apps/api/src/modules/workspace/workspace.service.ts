@@ -3,7 +3,7 @@ import type {
   UpdateWorkspaceSecurityInput,
   WorkspaceProfile,
   WorkspaceSecuritySettings,
-} from "@dariise/contracts";
+} from "@iwifunni/contracts";
 
 import { ApiError } from "../../shared/http/errors.js";
 import { parseMetadata, toSecuritySettings, toWorkspaceProfile } from "./workspace.mapper.js";

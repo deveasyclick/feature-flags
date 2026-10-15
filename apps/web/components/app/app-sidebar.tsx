@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { EnvironmentSummary, Project } from "@dariise/contracts";
+import type { EnvironmentSummary, Project } from "@iwifunni/contracts";
 import type { ChromeUser } from "@/lib/scope";
 
 interface SidebarProps {
@@ -129,7 +129,7 @@ export function AppSidebar({
             <Logo className="size-4" />
           </span>
           <span className="text-[13px] font-semibold tracking-[0.2em] text-white uppercase">
-            Dariise
+            Iwifunni
           </span>
           <span
             title="Collapse sidebar — coming soon"

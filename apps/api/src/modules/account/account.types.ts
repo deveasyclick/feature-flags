@@ -1,4 +1,4 @@
-import type { Theme } from "@dariise/contracts";
+import type { Theme } from "@iwifunni/contracts";
 
 export interface PreferencesRow {
   userId: string;
