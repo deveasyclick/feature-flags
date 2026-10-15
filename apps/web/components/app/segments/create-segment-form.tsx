@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, segments } from "@/lib/api";
 import {
-  conditionsNeedValues,
+  firstConditionError,
   formatConditionSummary,
   newConditionDraft,
   toConditionInputs,
@@ -112,10 +112,12 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
 
   function validateForm(): FieldErrors<SegmentField> {
     const next = { ...validate(payload()) };
+    // A half-built condition - no attribute, or no value - would otherwise
+    // save into a segment the API evaluates as matching nobody for as long as
+    // the segment lives. The message names the condition it is about.
+    const conditionError = firstConditionError(rules);
 
-    if (conditionsNeedValues(rules)) {
-      next.rules = "Every condition needs a value.";
-    }
+    if (conditionError) next.rules = conditionError;
 
     return next;
   }

@@ -20,6 +20,18 @@ export const operatorLabels: Record<TargetingOperator, string> = {
   matches_regex: "matches regex",
 };
 
+/**
+ * The operators each attribute type may be given.
+ *
+ * These are the comparisons the engine can actually evaluate, not the ones a
+ * type's name suggests. `greater_than` and its three siblings compare numbers
+ * only: the engine resolves both sides with a numeric conversion that answers
+ * `null` for anything else, so a version or a date put through them is a
+ * condition that can never be true. `semver` and `date` therefore keep the
+ * string comparisons, which are the ones that work on a value the engine holds
+ * as text. Offering a comparison the engine cannot decide is how a rule gets
+ * published that silently matches nobody.
+ */
 const operatorsByType: Record<TargetingAttributeType, TargetingOperator[]> = {
   boolean: ["equals", "not_equals"],
   string: [
@@ -41,21 +53,25 @@ const operatorsByType: Record<TargetingAttributeType, TargetingOperator[]> = {
     "less_than",
     "less_than_or_equal",
   ],
+  // Equal to `string`: the engine has no version ordering to offer.
   semver: [
     "equals",
     "not_equals",
-    "greater_than",
-    "greater_than_or_equal",
-    "less_than",
-    "less_than_or_equal",
+    "in",
+    "not_in",
+    "contains",
+    "not_contains",
+    "matches_regex",
   ],
+  // Equal to `string`: the engine has no date comparison to offer.
   date: [
     "equals",
     "not_equals",
-    "greater_than",
-    "greater_than_or_equal",
-    "less_than",
-    "less_than_or_equal",
+    "in",
+    "not_in",
+    "contains",
+    "not_contains",
+    "matches_regex",
   ],
 };
 
@@ -76,29 +92,84 @@ export interface TargetingAttributeOption {
 /**
  * The attributes the dashboard suggests.
  *
- * The wire contract takes any attribute name and the engine reads whichever one
- * a condition carries, so these are suggestions rather than a closed set: an
- * attribute no option names is typed `string`, and one another client wrote
- * stays editable here.
+ * Each name here is the key the evaluating application has to send: the engine
+ * reads an attribute with `subject[attribute]`, literally, so `beta` matches a
+ * context attribute called `beta` and never one called `user.beta`.
+ *
+ * They are suggestions, and nothing here is a promise. Two gaps are worth
+ * stating, because the editor cannot close either one: this list is not read
+ * from any environment, so a name here may be one an application never sends,
+ * and the types are the dashboard's guess rather than a declared schema - no
+ * attribute carries a type anywhere in the product. A name no option lists is
+ * typed `string` and stays editable.
  */
 export const targetingAttributeOptions: TargetingAttributeOption[] = [
-  { value: "user.id", type: "string" },
-  { value: "user.beta", type: "boolean" },
-  { value: "user.email", type: "string" },
-  { value: "user.plan", type: "string" },
-  { value: "user.country", type: "string" },
-  { value: "user.appVersion", type: "semver" },
+  { value: "id", type: "string" },
+  { value: "beta", type: "boolean" },
+  { value: "email", type: "string" },
+  { value: "plan", type: "string" },
+  { value: "country", type: "string" },
   { value: "region", type: "string" },
   { value: "sessions", type: "number" },
 ];
 
-export function attributeTypeOf(attribute: string): TargetingAttributeType {
+/** The type the suggestion list gives an attribute, or `string` for a custom key. */
+export function suggestedAttributeType(
+  attribute: string,
+): TargetingAttributeType {
   const normalised = attribute.trim();
 
   return (
     targetingAttributeOptions.find((option) => option.value === normalised)
       ?.type ?? "string"
   );
+}
+
+/**
+ * The type a condition is actually drawn and evaluated with.
+ *
+ * A reader who sets a type meant it; an unset one means the attribute is one the
+ * suggestion list names. `string` is the fallback for a custom key, which is the
+ * set of comparisons that works on a value the engine holds as text.
+ */
+export function effectiveAttributeType(
+  attribute: string,
+  declared?: TargetingAttributeType,
+): TargetingAttributeType {
+  return declared ?? suggestedAttributeType(attribute);
+}
+
+/**
+ * Whether a condition is showing the suggestion list's own type.
+ *
+ * True only for a suggested attribute the reader has not overridden, which is
+ * the one case the editor may present the type as a fact it did not receive a
+ * decision about. Everything else - an overridden suggestion, and any custom
+ * key, which the list gives no type at all - has to be editable, or a custom
+ * number is stuck with the comparisons that only work on text.
+ */
+export function isSuggestedAttributeType(
+  attribute: string,
+  declared?: TargetingAttributeType,
+): boolean {
+  return (
+    isKnownAttribute(attribute) &&
+    effectiveAttributeType(attribute, declared) ===
+      suggestedAttributeType(attribute)
+  );
+}
+
+/**
+ * Whether the option list names this attribute.
+ *
+ * `false` means "not suggested", never "invalid": an application supplies its
+ * own context attributes, so a name this list omits is typed `string` and stays
+ * editable. The caller warns about it; nothing here refuses it.
+ */
+export function isKnownAttribute(attribute: string): boolean {
+  const normalised = attribute.trim();
+
+  return targetingAttributeOptions.some((option) => option.value === normalised);
 }
 
 /** The example value a field shows for the type it is typed against. */
@@ -123,6 +194,13 @@ export function valuePlaceholder(
 export interface ConditionDraft {
   id: string;
   attribute: string;
+  /**
+   * The type the reader set for the attribute, or `undefined` to use the one
+   * the suggestion list gives it. The two differ for a custom key, which no
+   * suggestion types - and the engine compares numerically whatever the type
+   * says, so the operator list is decided by the type that ends up on the row.
+   */
+  attributeType?: TargetingAttributeType;
   operator: TargetingOperator;
   /** Comma-separated, split when the form submits. */
   values: string;
@@ -136,7 +214,16 @@ export function nextDraftId(prefix: string): string {
   return `${prefix}-${generatedId}`;
 }
 
-export function newConditionDraft(attribute = "user.beta"): ConditionDraft {
+/**
+ * A new condition names no attribute: the reader has to choose one.
+ *
+ * There is deliberately no default. An attribute is matched by its exact key in
+ * the evaluation context, so a plausible-looking default such as `user.beta`
+ * names a key the engine never resolves: the condition would validate, save and
+ * then silently match nobody, which is the failure the empty placeholder exists
+ * to avoid.
+ */
+export function newConditionDraft(attribute = ""): ConditionDraft {
   return {
     id: nextDraftId("condition"),
     attribute,
@@ -145,12 +232,24 @@ export function newConditionDraft(attribute = "user.beta"): ConditionDraft {
   };
 }
 
+/** The first operator a type offers, which is what a change of type falls back to. */
+function defaultOperatorFor(attributeType: TargetingAttributeType): TargetingOperator {
+  return operatorsByType[attributeType][0] ?? "equals";
+}
+
 export function conditionDraftsFrom(
   conditions: readonly TargetingCondition[],
 ): ConditionDraft[] {
   return conditions.map((condition) => ({
     id: nextDraftId("condition"),
     attribute: condition.attribute,
+    // Held only when it differs from the suggestion, so a stored rule the
+    // dashboard agrees with keeps reading as "suggested" rather than being
+    // relabelled as something the reader chose.
+    attributeType:
+      condition.attributeType === suggestedAttributeType(condition.attribute)
+        ? undefined
+        : condition.attributeType,
     operator: condition.operator,
     values: condition.values.join(", "),
   }));
@@ -163,25 +262,158 @@ export function splitValues(text: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * A condition's problem, as the editor and the publish gates read it.
+ *
+ * `error` is what refuses a publish; `warning` is advisory and never blocks.
+ */
+export interface ConditionIssue {
+  /** The draft the issue belongs to. */
+  id: string;
+  severity: "error" | "warning";
+  message: string;
+}
+
+/**
+ * What is wrong with each condition in a list.
+ *
+ * An empty or unknown attribute is the interesting case. Nothing resolves an
+ * empty key, so it can never match and is an error. An unknown key may be a
+ * typo or may be an attribute this dashboard does not suggest - an application
+ * supplies its own - so it warns and stays publishable: this list is not the
+ * evaluation context, and reading it as a closed set would refuse rules that
+ * work.
+ *
+ * A missing value is an error for the same reason an empty key is: no value
+ * matches nobody for the positive operators and everybody for the negations,
+ * so it is never what the reader meant. That rule is unchanged from
+ * `conditionsNeedValues`, which stays as the narrower question.
+ *
+ * The rows report one issue each. A value is meaningless before the attribute
+ * that types it exists, so a condition with no attribute reports that alone:
+ * naming both at once reads as two faults in a row the reader has only begun.
+ */
+export function conditionIssues(
+  drafts: readonly ConditionDraft[],
+): ConditionIssue[] {
+  return drafts.flatMap<ConditionIssue>((draft) => {
+    const issues: ConditionIssue[] = [];
+    const attribute = draft.attribute.trim();
+    const quoted = '"' + attribute + '"';
+
+    if (attribute === "") {
+      issues.push({
+        id: draft.id,
+        severity: "error",
+        message: "Choose an attribute for this condition.",
+      });
+    } else if (!isKnownAttribute(attribute)) {
+      issues.push({
+        id: draft.id,
+        severity: "warning",
+        message:
+          quoted +
+          " is not one of the suggested attributes. An attribute is matched by " +
+          "its exact key in the evaluation context, so " +
+          quoted +
+          " reads an attribute of that name and never resolves to anything " +
+          "else. Custom attributes are allowed - check the key your SDK sends.",
+      });
+    }
+
+    if (attribute !== "" && splitValues(draft.values).length === 0) {
+      issues.push({
+        id: draft.id,
+        severity: "error",
+        message: "Give " + quoted + " a value.",
+      });
+    }
+
+    return issues;
+  });
+}
+
+/** The errors in a list, in the order the rows appear. */
+export function conditionErrors(
+  drafts: readonly ConditionDraft[],
+): ConditionIssue[] {
+  return conditionIssues(drafts).filter((issue) => issue.severity === "error");
+}
+
+/**
+ * The first condition that is holding a publish back, as one sentence.
+ *
+ * Both publish gates read this, so a rule on the flag screen and a condition
+ * in the segment builder are refused in the same words. The row is restated
+ * because a form with several conditions gives no other way to find the one
+ * the message is about.
+ */
+export function firstConditionError(
+  drafts: readonly ConditionDraft[],
+): string | null {
+  const issue = conditionErrors(drafts)[0];
+
+  if (!issue) return null;
+
+  const failing = drafts.find((draft) => draft.id === issue.id);
+
+  return failing
+    ? `${issue.message} Condition: "${describeConditionRemark(failing)}".`
+    : issue.message;
+}
+
+
+/**
+ * A condition as a sentence, tolerating the half-built state the editor holds.
+ *
+ * `describeCondition` is for a condition that has an attribute. This is for one
+ * being typed: a review step can still say what the row is, without printing an
+ * empty gap where the attribute belongs.
+ */
+export function describeConditionRemark(condition: ConditionDraft): string {
+  const attribute = condition.attribute.trim();
+
+  if (attribute === "") {
+    return (
+      "(no attribute chosen) " +
+      operatorLabels[condition.operator] +
+      " " +
+      valuesLabel(splitValues(condition.values))
+    );
+  }
+
+  return describeCondition({
+    attribute,
+    operator: condition.operator,
+    values: splitValues(condition.values),
+  });
+}
+
 export function toConditionInputs(
   drafts: readonly ConditionDraft[],
 ): TargetingConditionInput[] {
   return drafts.map((draft) => ({
     attribute: draft.attribute.trim(),
-    attributeType: attributeTypeOf(draft.attribute),
+    attributeType: effectiveAttributeType(draft.attribute, draft.attributeType),
     operator: draft.operator,
     values: splitValues(draft.values),
   }));
 }
 
-/** Keeps the operator one the new attribute's type allows. */
+/**
+ * Keeps the operator one the row's type allows.
+ *
+ * Changing the attribute can change the type - a custom key is a string, a
+ * suggestion may be a number - and an operator the new type cannot evaluate
+ * would be a condition the engine never matches.
+ */
 export function withAttribute(
   draft: ConditionDraft,
   attribute: string,
 ): ConditionDraft {
-  const allowed = operatorsForAttributeType(attributeTypeOf(attribute)).map(
-    (option) => option.value,
-  );
+  const allowed = operatorsForAttributeType(
+    effectiveAttributeType(attribute, draft.attributeType),
+  ).map((option) => option.value);
 
   return {
     ...draft,
@@ -193,9 +425,35 @@ export function withAttribute(
 }
 
 /**
- * A condition with no values is refused before it is sent: an empty list
- * matches nobody for the positive operators and everybody for the negations, so
- * it is never what the reader meant.
+ * Sets the type the reader chose for an attribute.
+ *
+ * The operator follows the new type for the same reason it follows a new
+ * attribute: a comparison the type cannot make is one the engine cannot decide.
+ */
+export function withAttributeType(
+  draft: ConditionDraft,
+  attributeType: TargetingAttributeType,
+): ConditionDraft {
+  const allowed = operatorsForAttributeType(attributeType).map(
+    (option) => option.value,
+  );
+
+  return {
+    ...draft,
+    attributeType,
+    operator: allowed.includes(draft.operator)
+      ? draft.operator
+      : defaultOperatorFor(attributeType),
+  };
+}
+
+/**
+ * Whether any condition in the list has no values.
+ *
+ * An empty list matches nobody for the positive operators and everybody for the
+ * negations, so it is never what the reader meant. `conditionIssues` reports
+ * this alongside a missing attribute, with a message per row; this stays as the
+ * narrow predicate it always was.
  */
 export function conditionsNeedValues(
   drafts: readonly ConditionDraft[],

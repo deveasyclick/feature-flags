@@ -180,6 +180,92 @@ describe("evaluate", () => {
     });
   });
 
+  it("matches an attribute by its exact key, not as a path into the subject", () => {
+    const rule = (attribute: string) => ({
+      id: "rule-1",
+      conditions: [{ ...CONDITION, attribute }],
+      variation: "on",
+      segmentKeys: [],
+      rolloutPercentage: null,
+      bucketBy: null,
+    });
+    const subject = { id: "user-1", plan: "beta" };
+
+    // A caller sends `plan`, and the SDK flattens attributes onto the subject, so
+    // a rule on `user.plan` names a key nothing sent and must not match.
+    expect(evaluate(input({ rules: [rule("plan")], subject }))).toMatchObject({
+      reason: "targeting_rule",
+      matchedRuleId: "rule-1",
+    });
+    expect(
+      evaluate(input({ rules: [rule("user.plan")], subject })),
+    ).toMatchObject({ reason: "default_variation", matchedRuleId: null });
+  });
+  it("compares numerically, so a version has no ordering to match on", () => {
+    // `greater_than` and its siblings resolve both sides with a numeric
+    // conversion, and no version string survives it. The dashboard used to
+    // suggest `appVersion` as exactly this kind of value and offer the numeric
+    // operators, which is a rule that publishes and then matches nobody.
+    const rule = (operator: string, values: string[]) => ({
+      id: "rule-1",
+      conditions: [{ ...CONDITION, attribute: "appVersion", operator, values }],
+      variation: "on",
+      segmentKeys: [],
+      rolloutPercentage: null,
+      bucketBy: null,
+    });
+
+    const subject = { id: "user-1", appVersion: "2.0.0" };
+
+    for (const operator of [
+      "greater_than",
+      "greater_than_or_equal",
+      "less_than",
+      "less_than_or_equal",
+    ]) {
+      expect(
+        evaluate(input({ rules: [rule(operator, ["1.4.0"])], subject })),
+      ).toMatchObject({ reason: "default_variation", matchedRuleId: null });
+    }
+
+    // Equality is a string comparison, so the same attribute is still usable -
+    // and a numeric attribute keeps the ordering.
+    expect(
+      evaluate(input({ rules: [rule("equals", ["2.0.0"])], subject })),
+    ).toMatchObject({ reason: "targeting_rule", matchedRuleId: "rule-1" });
+    expect(
+      evaluate(
+        input({
+          rules: [rule("greater_than", ["1"])],
+          subject: { id: "user-1", appVersion: 2 },
+        }),
+      ),
+    ).toMatchObject({ reason: "targeting_rule", matchedRuleId: "rule-1" });
+  });
+
+  it("treats false and 0 as values, not as an absent attribute", () => {
+    const rule = (attribute: string, values: string[]) => ({
+      id: "rule-1",
+      conditions: [{ ...CONDITION, attribute, operator: "equals", values }],
+      variation: "on",
+      segmentKeys: [],
+      rolloutPercentage: null,
+      bucketBy: null,
+    });
+
+    const subject = { id: "user-1", beta: false, sessions: 0 };
+
+    expect(
+      evaluate(input({ rules: [rule("beta", ["false"])], subject })),
+    ).toMatchObject({ reason: "targeting_rule", matchedRuleId: "rule-1" });
+    expect(
+      evaluate(input({ rules: [rule("sessions", ["0"])], subject })),
+    ).toMatchObject({ reason: "targeting_rule", matchedRuleId: "rule-1" });
+    expect(
+      evaluate(input({ rules: [rule("beta", ["true"])], subject })),
+    ).toMatchObject({ reason: "default_variation", matchedRuleId: null });
+  });
+
   it("reports a segment match as the segment reason", () => {
     const rule = {
       id: "rule-1",

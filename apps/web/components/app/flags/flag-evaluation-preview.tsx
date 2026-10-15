@@ -301,7 +301,8 @@ export function FlagEvaluationPreview({
           <h2 className="text-[13px] font-medium">Subject</h2>
           <p className="text-muted-foreground mt-1 text-[11px]">
             Evaluated in {config.environmentName} as a normal request would be. The
-            workspace on this session decides which flags are visible.
+            workspace on this session decides which flags are visible, and each
+            attribute is sent - and matched - under exactly the key typed here.
           </p>
 
           <div className="mt-3 space-y-3">
@@ -329,7 +330,7 @@ export function FlagEvaluationPreview({
                     list={attributesId}
                     value={row.attribute}
                     aria-label={`Attribute ${index + 1}`}
-                    placeholder="user.plan"
+                    placeholder="plan"
                     onChange={(event) =>
                       updateAttribute(row.id, { attribute: event.target.value })
                     }

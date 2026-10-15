@@ -40,6 +40,7 @@ import { ApiError, changeRequests as changeRequestsApi, flags as flagsApi } from
 import {
   conditionDraftsFrom,
   conditionsNeedValues,
+  firstConditionError,
   newConditionDraft,
   nextDraftId,
   toConditionInputs,
@@ -107,6 +108,25 @@ function ruleDraftsFrom(rules: readonly TargetingRule[]): RuleDraft[] {
         }
       : null,
   }));
+}
+
+/**
+ * Why a rule cannot be published yet, named so the reader can find it.
+ *
+ * The condition's own message says what is wrong; this adds the rule the
+ * condition sits in, because a form holding several rules gives no other way
+ * to locate the one that is holding the publish back. A rule with no
+ * conditions at all is not this: that is the deliberate match-everybody
+ * shape, and it stays valid.
+ */
+function firstRuleConditionError(rules: readonly RuleDraft[]): string | null {
+  for (const [index, rule] of rules.entries()) {
+    const message = firstConditionError(rule.conditions);
+
+    if (message) return "Rule " + (index + 1) + ": " + message;
+  }
+
+  return null;
 }
 
 function configInput(
@@ -464,6 +484,10 @@ export function FlagTargeting({
   }
 
   function validationError(): string | null {
+    const conditionError = firstRuleConditionError(rules);
+
+    if (conditionError) return conditionError;
+
     if (rules.some((rule) => conditionsNeedValues(rule.conditions))) {
       return "Every condition needs a value.";
     }
@@ -690,7 +714,6 @@ export function FlagTargeting({
                   <div className="mt-2.5">
                     <ConditionList
                       conditions={rule.conditions}
-                      attributesId={attributesId}
                       disabled={archived}
                       emptyLabel="No conditions: this rule matches everybody."
                       onChange={(id, patch) =>

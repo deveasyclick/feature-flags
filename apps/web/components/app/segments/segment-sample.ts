@@ -81,18 +81,14 @@ export const sampleAudience: SampleUser[] = [
 
 export type SampleField = "id" | "beta" | "email" | "plan" | "region" | "sessions";
 
+// The engine's keys, unmapped: an attribute is read literally, so `user.beta` is
+// not an alias for `beta` and this table must not pretend that it is.
 const attributeFields: Record<string, SampleField> = {
-  "user.beta": "beta",
   beta: "beta",
-  "user.email": "email",
   email: "email",
-  "user.plan": "plan",
   plan: "plan",
-  "user.region": "region",
   region: "region",
-  "user.sessions": "sessions",
   sessions: "sessions",
-  "user.id": "id",
   id: "id",
 };
 
@@ -132,7 +128,7 @@ function matchesCondition(
   condition: TargetingConditionInput,
   user: SampleUser,
 ): boolean {
-  const field = attributeFields[normalise(condition.attribute)];
+  const field = attributeFields[condition.attribute];
   if (!field) return false;
 
   const values = condition.values.map((value) => value.trim()).filter(Boolean);

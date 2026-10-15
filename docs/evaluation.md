@@ -42,6 +42,19 @@ The vocabulary is `EVALUATION_REASONS` in `packages/contracts/src/evaluation.ts`
 
 `error` has no producer, and an evaluation failure is not mapped onto it. The engine throws nothing for bad input, and anything that does throw inside a request reaches `app.onError((error, c) => errorResponse(c, error))` in `app.ts`, which answers a generic 500 with code `internalError` and no internals (`apps/api/src/shared/http/errors.ts`).
 
+## Attribute naming
+
+The subject is flat: `id` plus one key per attribute, and a condition's `attribute` is read with
+`subject[attribute]` - literally, with no path resolution and no prefix stripping. A rule on `beta`
+therefore matches an attribute named `beta`, and a rule on `user.beta` matches only a context that
+carries the key `user.beta`. The SDK builds the same flat subject from
+`identify({ userId, attributes })` by spreading `attributes` onto it, so the keys an application
+sends are the attribute names the dashboard has to target; `docs/sdk.md` states the SDK's side. `id`
+is the subject id, so an attribute of that name is the id rather than a value to look up.
+
+Condition `values` are always strings whatever the attribute's declared type, and `attributeType` is
+carried on the row but never consulted: "Condition operators" below has the comparison rules.
+
 ## Rule evaluation semantics
 
 A rule is a conjunction of three gates, each of which can skip it.

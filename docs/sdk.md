@@ -131,6 +131,10 @@ close(): void
   serves defaults; a later failure calls `onError` and keeps the last snapshot.
 - Reads are synchronous and local. `identify` sets the default subject; a
   per-call `context` overrides it. With neither, the subject is `{ id: "" }`.
+- The subject is flat: `attributes` are spread onto it as sent and `userId`
+  becomes `id`. Attribute keys are matched literally, so a rule targeting `plan`
+  reads the attribute an application sent as `plan`; a rule on `user.plan` would
+  need a key of exactly that name. `docs/evaluation.md` has the naming rule.
 - `isOn` is the engine's `enabled` — the served variation is not the off
   variation. A flag the snapshot does not carry, or any read before the first
   snapshot, is `false`.
