@@ -8,6 +8,7 @@
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
     "build": "pnpm --recursive build",
+    "build:web": "pnpm --filter web build",
     "start": "pnpm --filter web start",
     "lint": "pnpm --recursive lint",
     "typecheck": "pnpm --recursive typecheck",
