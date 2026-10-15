@@ -65,6 +65,7 @@ export function FlagDetailHeader({
                 ? "bg-ok-ink/10 text-ok-ink"
                 : "bg-muted text-muted-foreground",
             )}
+            title={`Whether ${environmentLabel} serves this flag, whatever the flag's lifecycle status says.`}
           >
             <span
               aria-hidden="true"
@@ -73,7 +74,7 @@ export function FlagDetailHeader({
                 enabled ? "bg-ok-ink" : "bg-muted-foreground",
               )}
             />
-            {enabled ? "Enabled" : "Disabled"}
+            {enabled ? "Serving" : "Not serving"}
           </span>
           <EditFlagButton projectKey={projectKey} flag={flag} />
         </div>

@@ -24,9 +24,19 @@ export function flagState(state: {
  */
 export function FlagStatusBadge({ status }: { readonly status: FlagStatus }) {
   return status === "archived" ? (
-    <Badge variant="destructive">Archived</Badge>
+    <Badge
+      variant="destructive"
+      title="Project-wide lifecycle status: an archived flag serves its off variation in every environment."
+    >
+      Archived
+    </Badge>
   ) : (
-    <Badge variant="ok">Active</Badge>
+    <Badge
+      variant="ok"
+      title="Project-wide lifecycle status; each environment still decides whether it serves the flag."
+    >
+      Active
+    </Badge>
   );
 }
 
