@@ -3,17 +3,14 @@
 import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowDownIcon,
-  ArrowUpIcon,
   CheckCircle2Icon,
   InfoIcon,
   LoaderCircleIcon,
   PlusIcon,
+  RotateCcwIcon,
   SaveIcon,
   SparklesIcon,
-  XIcon,
 } from "lucide-react";
-import { cn } from "cn";
 import type {
   FlagDetail,
   FlagEnvironmentConfig,
@@ -23,8 +20,8 @@ import type {
   TargetingRuleInput,
   UpdateFlagConfigInput,
 } from "@dariise/contracts";
+import { RuleCard } from "@/components/app/flags/rule-card";
 import { AttributeSuggestions } from "@/components/app/targeting/attribute-suggestions";
-import { ConditionList } from "@/components/app/targeting/condition-list";
 import { FieldError } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,14 +44,15 @@ import {
   type ConditionDraft,
 } from "@/lib/targeting";
 
-/** A rule's own rollout, as the two fields hold it. */
-interface RuleRolloutDraft {
+/** A rule's own rollout, as the two fields hold it. Shared with the card. */
+export interface RuleRolloutDraft {
   percentage: string;
   bucketBy: string;
 }
 
+
 /** A rule as this screen holds it: the saved shape plus the text being typed. */
-interface RuleDraft {
+export interface RuleDraft {
   id: string;
   description: string;
   conditions: ConditionDraft[];
@@ -163,120 +161,6 @@ function isWholePercentage(text: string): boolean {
   return Number(trimmed) <= 100;
 }
 
-/** The percentage and bucketing attribute of one rule's own rollout. */
-function RuleRolloutControls({
-  rollout,
-  index,
-  disabled,
-  attributesId,
-  onChange,
-}: {
-  readonly rollout: RuleRolloutDraft;
-  readonly index: number;
-  readonly disabled: boolean;
-  readonly attributesId: string;
-  readonly onChange: (rollout: RuleRolloutDraft) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Input
-        value={rollout.percentage}
-        disabled={disabled}
-        inputMode="numeric"
-        aria-label={`Rollout percentage for rule ${index + 1}`}
-        onChange={(event) => onChange({ ...rollout, percentage: event.target.value })}
-        className="h-7 w-16 text-[11px]"
-      />
-      <span className="text-muted-foreground text-[11px]">
-        % of the subjects this rule matches, bucketed by
-      </span>
-      <Input
-        list={attributesId}
-        value={rollout.bucketBy}
-        disabled={disabled}
-        placeholder="userId"
-        aria-label={`Bucketing attribute for rule ${index + 1}`}
-        onChange={(event) => onChange({ ...rollout, bucketBy: event.target.value })}
-        className="h-7 w-36 font-mono text-[11px]"
-      />
-    </div>
-  );
-}
-
-/**
- * The segments one rule is gated on: every attached one has to match as well.
- *
- * The project's active segments are toggles. A key that no active segment
- * answers to stays listed because evaluation still resolves an archived one,
- * and dropping it silently would change what the rule serves.
- */
-function RuleSegments({
-  rule,
-  segments,
-  index,
-  disabled,
-  onToggle,
-}: {
-  readonly rule: RuleDraft;
-  readonly segments: SegmentSummary[];
-  readonly index: number;
-  readonly disabled: boolean;
-  readonly onToggle: (key: string) => void;
-}) {
-  const known = new Set(segments.map((segment) => segment.key));
-  const unknown = rule.segmentKeys.filter((key) => !known.has(key));
-
-  return (
-    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-      <span className="text-muted-foreground mr-0.5 text-[10px] uppercase">
-        segments
-      </span>
-
-      {segments.map((segment) => {
-        const attached = rule.segmentKeys.includes(segment.key);
-
-        return (
-          <button
-            key={segment.key}
-            type="button"
-            aria-pressed={attached}
-            disabled={disabled}
-            onClick={() => onToggle(segment.key)}
-            aria-label={`${attached ? "Detach" : "Attach"} segment ${segment.name} ${attached ? "from" : "to"} rule ${index + 1}`}
-            className={cn(
-              "rounded-md border px-2 py-0.5 text-[10px] transition-colors disabled:opacity-60",
-              attached
-                ? "border-primary bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {segment.name}
-          </button>
-        );
-      })}
-
-      {unknown.map((key) => (
-        <button
-          key={key}
-          type="button"
-          aria-pressed
-          disabled={disabled}
-          onClick={() => onToggle(key)}
-          title="This segment is not in the project's active list; evaluation still resolves it."
-          className="border-primary bg-primary/10 text-primary rounded-md border px-2 py-0.5 font-mono text-[10px] disabled:opacity-60"
-        >
-          {key}
-        </button>
-      ))}
-
-      {segments.length === 0 && unknown.length === 0 ? (
-        <span className="text-muted-foreground text-[10px]">
-          This project has no segments yet.
-        </span>
-      ) : null}
-    </div>
-  );
-}
 
 /**
  * Targeting tab.
@@ -329,6 +213,12 @@ export function FlagTargeting({
   const [published, setPublished] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Which rule shows its editor. One at a time keeps the list scannable. */
+  const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
+  /** The last rule removed, held so the removal can be taken back. */
+  const [undoDelete, setUndoDelete] = useState<
+    { rule: RuleDraft; index: number } | null
+  >(null);
   const [baseline, setBaseline] = useState(() =>
     payloadKey(
       ruleInputs(ruleDraftsFrom(initialRules), config.bucketBy),
@@ -407,10 +297,12 @@ export function FlagTargeting({
    * catch-all rule are built from.
    */
   function addRule() {
+    const id = nextDraftId("rule");
+
     setRules((previous) => [
       ...previous,
       {
-        id: nextDraftId("rule"),
+        id,
         description: "",
         conditions: [],
         variation: config.defaultVariation,
@@ -418,10 +310,83 @@ export function FlagTargeting({
         rollout: null,
       },
     ]);
+    // A rule nobody can see is a rule nobody finishes, so the new one opens
+    // and the one that was open closes.
+    setExpandedRuleId(id);
+    setUndoDelete(null);
   }
 
+  /**
+   * A copy of a rule, placed directly after it.
+   *
+   * The conditions are copied rather than shared, because two rules holding one
+   * draft would edit each other. The ids are fresh for the same reason: the card
+   * keys on them, and a duplicate key would collapse both rows into one.
+   */
+  function duplicateRule(id: string) {
+    const index = rules.findIndex((rule) => rule.id === id);
+    const original = rules[index];
+
+    if (!original) return;
+
+    const copy: RuleDraft = {
+      ...original,
+      id: nextDraftId("rule"),
+      conditions: original.conditions.map((condition) => ({
+        ...condition,
+        id: nextDraftId("condition"),
+      })),
+      segmentKeys: [...original.segmentKeys],
+      rollout: original.rollout ? { ...original.rollout } : null,
+    };
+
+    setRules((previous) => {
+      const next = [...previous];
+
+      next.splice(index + 1, 0, copy);
+
+      return next;
+    });
+    setExpandedRuleId(copy.id);
+    setUndoDelete(null);
+  }
+
+  /**
+   * Removes a rule, keeping enough of it to put it back.
+   *
+   * Deleting is the one action here that can lose work in a single click, and it
+   * is reversible only while the draft is unpublished - which is exactly the
+   * window this affordance covers.
+   */
   function removeRule(id: string) {
+    const index = rules.findIndex((rule) => rule.id === id);
+    const removed = rules[index];
+
+    if (!removed) return;
+
     setRules((previous) => previous.filter((rule) => rule.id !== id));
+    setUndoDelete({ rule: removed, index });
+    setExpandedRuleId((open) => (open === id ? null : open));
+  }
+
+  /** Puts the last removed rule back where it was. */
+  function restoreRemovedRule() {
+    if (!undoDelete) return;
+
+    const { rule, index } = undoDelete;
+
+    setRules((previous) => {
+      const next = [...previous];
+      // Clamped, because rules may have been removed since: the position is
+      // where the reader had it, not a promise the list still has that slot.
+      const at = Math.min(Math.max(index, 0), next.length);
+
+      next.splice(at, 0, rule);
+
+      return next;
+    });
+    setUndoDelete(null);
+    setExpandedRuleId(rule.id);
   }
 
   function moveRule(index: number, offset: number) {
@@ -607,8 +572,8 @@ export function FlagTargeting({
             <div>
               <h2 className="text-[13px] font-medium">Targeting Rules</h2>
               <p className="text-muted-foreground mt-1 text-[11px]">
-                Rules are evaluated top to bottom and the first full match wins.
-                The conditions inside one rule are AND-ed.
+              Evaluated from top to bottom, and the first rule whose conditions all
+              match wins. The order is the priority.
               </p>
             </div>
             <Button
@@ -628,137 +593,39 @@ export function FlagTargeting({
               No targeting rules. Every user receives the default variation.
             </p>
           ) : (
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-4 space-y-2">
               {rules.map((rule, index) => (
-                <li key={rule.id} className="bg-muted/30 rounded-lg border p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-muted-foreground text-[10px] uppercase">
-                      Rule {index + 1}
-                    </span>
-                    <Input
-                      value={rule.description}
-                      disabled={archived}
-                      placeholder="What this rule is for"
-                      aria-label={`Description for rule ${index + 1}`}
-                      onChange={(event) =>
-                        updateRule(rule.id, { description: event.target.value })
-                      }
-                      className="h-7 max-w-56 flex-1 text-[11px]"
-                    />
-
-                    <div className="flex items-center gap-2">
-                      {rule.rollout ? (
-                        <span className="bg-primary/10 text-primary rounded-md px-1.5 py-0.5 text-[10px]">
-                          {rule.rollout.percentage.trim() || "0"}% rollout
-                        </span>
-                      ) : null}
-                      <span className="text-muted-foreground text-[10px]">
-                        serve
-                      </span>
-                      <Select
-                        value={rule.variation}
-                        disabled={archived}
-                        onValueChange={(value) =>
-                          updateRule(rule.id, { variation: value })
-                        }
-                      >
-                        <SelectTrigger
-                          size="sm"
-                          aria-label={`Variation served by rule ${index + 1}`}
-                          className="text-[11px]"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {flag.variations.map((variation) => (
-                            <SelectItem
-                              key={variation.key}
-                              value={variation.key}
-                            >
-                              {variation.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <button
-                        type="button"
-                        disabled={archived || index === 0}
-                        onClick={() => moveRule(index, -1)}
-                        aria-label={`Move rule ${index + 1} up`}
-                        className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors disabled:opacity-40"
-                      >
-                        <ArrowUpIcon aria-hidden="true" className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={archived || index === rules.length - 1}
-                        onClick={() => moveRule(index, 1)}
-                        aria-label={`Move rule ${index + 1} down`}
-                        className="text-muted-foreground hover:text-foreground rounded p-1 transition-colors disabled:opacity-40"
-                      >
-                        <ArrowDownIcon aria-hidden="true" className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={archived}
-                        onClick={() => removeRule(rule.id)}
-                        aria-label={`Remove rule ${index + 1}`}
-                        className="text-muted-foreground hover:text-danger-ink rounded p-1 transition-colors disabled:opacity-60"
-                      >
-                        <XIcon aria-hidden="true" className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-2.5">
-                    <ConditionList
-                      conditions={rule.conditions}
-                      disabled={archived}
-                      emptyLabel="No conditions: this rule matches everybody."
-                      onChange={(id, patch) =>
-                        updateCondition(rule.id, id, patch)
-                      }
-                      onAdd={() => addCondition(rule.id)}
-                      onRemove={(id) => removeCondition(rule.id, id)}
-                    />
-                  </div>
-
-                  <RuleSegments
-                    rule={rule}
-                    segments={segments}
-                    index={index}
-                    disabled={archived}
-                    onToggle={(key) => toggleSegment(rule.id, key)}
-                  />
-
-                  <div className="mt-2.5 space-y-1.5">
-                    <label className="flex items-center gap-2 text-[11px]">
-                      <input
-                        type="checkbox"
-                        checked={rule.rollout !== null}
-                        disabled={archived}
-                        onChange={(event) =>
-                          toggleRollout(rule.id, event.target.checked)
-                        }
-                        className="size-3.5"
-                      />
-                      Apply this rule to a percentage of the subjects it matches
-                    </label>
-
-                    {rule.rollout ? (
-                      <RuleRolloutControls
-                        rollout={rule.rollout}
-                        index={index}
-                        disabled={archived}
-                        attributesId={attributesId}
-                        onChange={(rollout) =>
-                          updateRule(rule.id, { rollout })
-                        }
-                      />
-                    ) : null}
-                  </div>
-                </li>
+                <RuleCard
+                  key={rule.id}
+                  rule={rule}
+                  index={index}
+                  total={rules.length}
+                  expanded={expandedRuleId === rule.id}
+                  disabled={archived}
+                  variations={flag.variations}
+                  segments={segments}
+                  attributesId={attributesId}
+                  onToggle={() =>
+                    setExpandedRuleId((open) => (open === rule.id ? null : rule.id))
+                  }
+                  onDuplicate={() => duplicateRule(rule.id)}
+                  onMove={(offset) => moveRule(index, offset)}
+                  onDelete={() => removeRule(rule.id)}
+                  onDescription={(description) =>
+                    updateRule(rule.id, { description })
+                  }
+                  onVariation={(variation) => updateRule(rule.id, { variation })}
+                  onConditionChange={(conditionId, patch) =>
+                    updateCondition(rule.id, conditionId, patch)
+                  }
+                  onConditionAdd={() => addCondition(rule.id)}
+                  onConditionRemove={(conditionId) =>
+                    removeCondition(rule.id, conditionId)
+                  }
+                  onSegmentToggle={(key) => toggleSegment(rule.id, key)}
+                  onRolloutToggle={(enabled) => toggleRollout(rule.id, enabled)}
+                  onRolloutChange={(rollout) => updateRule(rule.id, { rollout })}
+                />
               ))}
             </ul>
           )}
@@ -891,6 +758,30 @@ export function FlagTargeting({
             </Button>
           </div>
         </section>
+
+        {undoDelete ? (
+          <div
+            role="status"
+            className="bg-muted/50 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+          >
+            <p className="text-muted-foreground text-[11px]">
+              Deleted rule {undoDelete.index + 1}
+              {undoDelete.rule.description.trim()
+                ? ": " + undoDelete.rule.description.trim()
+                : ""}
+              .
+            </p>
+            <button
+              type="button"
+              disabled={archived}
+              onClick={restoreRemovedRule}
+              className="text-foreground inline-flex items-center gap-1.5 text-[11px] underline-offset-2 hover:underline disabled:opacity-60"
+            >
+              <RotateCcwIcon aria-hidden="true" className="size-3.5" />
+              Undo
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-4">
@@ -932,7 +823,7 @@ export function FlagTargeting({
           </p>
         </section>
 
-        <section className="bg-card rounded-lg border p-4">
+        <section className="bg-card sticky bottom-0 z-20 rounded-lg border p-4 shadow-lg">
           <h2 className="text-[13px] font-medium">Publish changes</h2>
           <div className="text-muted-foreground mt-2 flex items-center gap-1.5 text-[11px]">
             <InfoIcon aria-hidden="true" className="size-3.5" />

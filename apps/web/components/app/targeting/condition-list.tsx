@@ -73,9 +73,7 @@ function AttributeTypeControl({
       // rather than presenting its own default as a decision.
       value={declared}
       disabled={disabled}
-      onValueChange={(value) =>
-        onChange(value as TargetingAttributeType)
-      }
+      onValueChange={(value) => onChange(value as TargetingAttributeType)}
     >
       <SelectTrigger
         size="sm"
@@ -109,11 +107,16 @@ function AttributeTypeControl({
  * because the contract takes any attribute and a condition another client wrote
  * has to stay editable. A custom name is allowed and labelled; it is not
  * refused, because this list is not the evaluation context.
+ *
+ * The conditions are one conjunction, so the group states that once instead of
+ * labelling every row: `groupLabel` is the sentence a reader should read before
+ * the rows rather than a repeated AND between them.
  */
 export function ConditionList({
   conditions,
   disabled = false,
   emptyLabel,
+  groupLabel,
   onChange,
   onAdd,
   onRemove,
@@ -121,6 +124,8 @@ export function ConditionList({
   readonly conditions: ConditionDraft[];
   readonly disabled?: boolean;
   readonly emptyLabel: string;
+  /** Stated once above the rows; the conditions are AND-ed either way. */
+  readonly groupLabel?: string;
   readonly onChange: (id: string, patch: Partial<ConditionDraft>) => void;
   readonly onAdd: () => void;
   readonly onRemove: (id: string) => void;
@@ -133,12 +138,31 @@ export function ConditionList({
 
   return (
     <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-muted-foreground text-[10px] uppercase">
+          {groupLabel ?? (conditions.length === 0 ? emptyLabel : "Conditions")}
+          {conditions.length > 0 ? (
+            <span className="ml-1.5 normal-case">({conditions.length})</span>
+          ) : null}
+        </p>
+
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onAdd}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[11px] underline-offset-2 hover:underline disabled:opacity-60"
+        >
+          <PlusIcon aria-hidden="true" className="size-3.5" />
+          Add condition
+        </button>
+      </div>
+
       {conditions.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-2 text-[11px]">
+        <p className="text-muted-foreground mt-2 rounded-lg border border-dashed px-3 py-2 text-[11px]">
           {emptyLabel}
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="mt-1 divide-y">
           {conditions.map((condition, index) => {
             const attribute = condition.attribute.trim();
             const attributeType = effectiveAttributeType(
@@ -150,15 +174,8 @@ export function ConditionList({
             const attributeName = `condition-${index + 1}-attribute`;
 
             return (
-              <li
-                key={condition.id}
-                className="bg-muted/30 rounded-lg border p-2.5"
-              >
+              <li key={condition.id} className="py-1.5 first:pt-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-muted-foreground w-7 text-[10px] uppercase">
-                    {index === 0 ? "if" : "and"}
-                  </span>
-
                   <AttributeSelect
                     value={condition.attribute}
                     disabled={disabled}
@@ -204,11 +221,16 @@ export function ConditionList({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {operatorsForAttributeType(attributeType).map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
+                          {operatorsForAttributeType(attributeType).map(
+                            (option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ),
+                          )}
                         </SelectContent>
                       </Select>
 
@@ -242,7 +264,9 @@ export function ConditionList({
                           value={condition.values}
                           disabled={disabled}
                           onChange={(event) =>
-                            onChange(condition.id, { values: event.target.value })
+                            onChange(condition.id, {
+                              values: event.target.value,
+                            })
                           }
                           aria-label={`Values for condition ${index + 1}`}
                           placeholder={valuePlaceholder(attributeType)}
@@ -268,7 +292,7 @@ export function ConditionList({
                 </div>
 
                 {issue ? (
-                  <div id={`${attributeName}-issue`} className="mt-1.5 pl-9">
+                  <div id={`${attributeName}-issue`} className="mt-1.5">
                     {issue.severity === "error" ? (
                       <FieldError>{issue.message}</FieldError>
                     ) : (
@@ -287,27 +311,6 @@ export function ConditionList({
           })}
         </ul>
       )}
-
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={onAdd}
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-[11px] underline-offset-2 hover:underline disabled:opacity-60"
-        >
-          <PlusIcon aria-hidden="true" className="size-3.5" />
-          Add condition
-        </button>
-        <p className="text-muted-foreground max-w-80 text-right text-[10px] leading-4">
-          An attribute is matched by its exact key, so a condition on
-          {" "}
-          <span className="font-mono">beta</span>
-          {" "}
-          reads an attribute called beta. The suggested names and their types come
-          from this dashboard, not from your application: they are not verified to
-          exist at evaluation time, and a custom key is matched just the same.
-        </p>
-      </div>
     </div>
   );
 }

@@ -300,21 +300,15 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
 
           {step === 1 ? (
             <section className="bg-card rounded-lg border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-[13px] font-medium">Conditions</h2>
-                  <p className="text-muted-foreground mt-1 text-[11px]">
-                    A user belongs to the segment when every condition matches.
-                  </p>
-                </div>
-                <span className="bg-primary/10 text-primary rounded-md px-2 py-0.5 text-[10px]">
-                  AND
-                </span>
-              </div>
+              <h2 className="text-[13px] font-medium">Conditions</h2>
+              <p className="text-muted-foreground mt-1 text-[11px]">
+                A user belongs to the segment when every condition matches.
+              </p>
 
               <div className="mt-4">
                 <ConditionList
                   conditions={rules}
+                  groupLabel="All conditions must match"
                   emptyLabel="No conditions."
                   onChange={updateRule}
                   onAdd={addRule}

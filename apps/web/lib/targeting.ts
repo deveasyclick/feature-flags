@@ -169,7 +169,9 @@ export function isSuggestedAttributeType(
 export function isKnownAttribute(attribute: string): boolean {
   const normalised = attribute.trim();
 
-  return targetingAttributeOptions.some((option) => option.value === normalised);
+  return targetingAttributeOptions.some(
+    (option) => option.value === normalised,
+  );
 }
 
 /** The example value a field shows for the type it is typed against. */
@@ -233,7 +235,9 @@ export function newConditionDraft(attribute = ""): ConditionDraft {
 }
 
 /** The first operator a type offers, which is what a change of type falls back to. */
-function defaultOperatorFor(attributeType: TargetingAttributeType): TargetingOperator {
+function defaultOperatorFor(
+  attributeType: TargetingAttributeType,
+): TargetingOperator {
   return operatorsByType[attributeType][0] ?? "equals";
 }
 
@@ -362,7 +366,6 @@ export function firstConditionError(
     : issue.message;
 }
 
-
 /**
  * A condition as a sentence, tolerating the half-built state the editor holds.
  *
@@ -372,21 +375,19 @@ export function firstConditionError(
  */
 export function describeConditionRemark(condition: ConditionDraft): string {
   const attribute = condition.attribute.trim();
+  const values = splitValues(condition.values);
+  const comparison = attribute + " " + operatorLabels[condition.operator];
 
-  if (attribute === "") {
-    return (
-      "(no attribute chosen) " +
-      operatorLabels[condition.operator] +
-      " " +
-      valuesLabel(splitValues(condition.values))
-    );
+  if (values.length === 0) {
+    return attribute === "" ? "(no attribute chosen)" : comparison;
   }
 
-  return describeCondition({
-    attribute,
-    operator: condition.operator,
-    values: splitValues(condition.values),
-  });
+  return (
+    (attribute === "" ? "(no attribute chosen) " : "") +
+    comparison +
+    " " +
+    values.join(", ")
+  );
 }
 
 export function toConditionInputs(
@@ -484,4 +485,47 @@ export function formatConditionSummary(
   return conditions.length === 0
     ? "No conditions"
     : conditions.map(describeCondition).join(" · ");
+}
+
+/**
+ * One line for a collapsed rule, from the drafts the editor holds.
+ *
+ * A rule with no conditions is not an unfinished one: the engine reads an empty
+ * conjunction as matching everybody, which is the shape a percentage split and a
+ * first catch-all rule are built from. Saying so is more useful than a blank.
+ */
+export function formatConditionSummaryText(
+  conditions: readonly ConditionDraft[],
+): string {
+  if (conditions.length === 0) return "Matches everybody";
+
+  return conditions.map(describeConditionRemark).join(" · ");
+}
+
+/**
+ * A collapsed rule's conditions, with any segments it also requires.
+ *
+ * The served variation is the header's own field rather than part of this
+ * sentence: a reader scanning the list reads the conditions to know who the rule
+ * catches and the variation to know what they get, and running them together
+ * makes both harder to find.
+ */
+export function formatRuleSummary(rule: {
+  conditions: readonly ConditionDraft[];
+  segmentKeys: readonly string[];
+}): string {
+  const segments =
+    rule.segmentKeys.length === 0
+      ? ""
+      : " and in " + rule.segmentKeys.join(", ");
+
+  return formatConditionSummaryText(rule.conditions) + segments;
+}
+
+/** A variation key as the name a reader sees, falling back to the key itself. */
+export function variationNameOf(
+  variations: readonly { key: string; name: string }[],
+  key: string,
+): string {
+  return variations.find((variation) => variation.key === key)?.name ?? key;
 }

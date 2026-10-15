@@ -144,7 +144,6 @@ export function AttributeSelect({
           <p className="text-muted-foreground px-2 py-1.5 text-[10px]">
             Suggested attributes, with the types this dashboard suggests. They
             are not a declaration your application made.
-            declaration your application made.
           </p>
 
           <ul

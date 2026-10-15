@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  effectiveAttributeType,
   conditionDraftsFrom,
+  effectiveAttributeType,
   conditionErrors,
   conditionIssues,
   describeConditionRemark,
   firstConditionError,
+  formatConditionSummaryText,
+  formatRuleSummary,
   isKnownAttribute,
   isSuggestedAttributeType,
   newConditionDraft,
@@ -14,6 +16,7 @@ import {
   suggestedAttributeType,
   targetingAttributeOptions,
   toConditionInputs,
+  variationNameOf,
   withAttribute,
   withAttributeType,
   type ConditionDraft,
@@ -438,5 +441,63 @@ describe("describeConditionRemark", () => {
     expect(describeConditionRemark(draft({ values: "true" }))).toContain(
       "no attribute chosen",
     );
+  });
+});
+
+describe("the collapsed rule summary", () => {
+  it("says a rule with no conditions matches everybody", () => {
+    // Not an unfinished rule: the engine reads an empty conjunction that way.
+
+    expect(formatConditionSummaryText([])).toBe("Matches everybody");
+  });
+
+  it("joins the conditions into one line", () => {
+    const summary = formatConditionSummaryText([
+      draft({ attribute: "country", operator: "equals", values: "US" }),
+      draft({ attribute: "plan", operator: "equals", values: "Pro" }),
+    ]);
+
+    expect(summary).toBe("country is US · plan is Pro");
+  });
+
+  it("reads a version as text rather than guessing at a comparison", () => {
+    expect(
+      formatConditionSummaryText([
+        draft({ attribute: "appVersion", operator: "equals", values: "1.4.0" }),
+      ]),
+    ).toBe("appVersion is 1.4.0");
+  });
+
+  it("names the segments a rule also requires", () => {
+    const summary = formatRuleSummary({
+      conditions: [draft({ attribute: "plan", operator: "equals", values: "Pro" })],
+      segmentKeys: ["beta-users"],
+    });
+
+    expect(summary).toBe("plan is Pro and in beta-users");
+  });
+
+  it("leaves the segments out when there are none", () => {
+    expect(
+      formatRuleSummary({
+        conditions: [draft({ attribute: "plan", operator: "equals", values: "Pro" })],
+        segmentKeys: [],
+      }),
+    ).toBe("plan is Pro");
+  });
+});
+
+const variations = [
+  { key: "off", name: "Off" },
+  { key: "on", name: "On" },
+];
+
+describe("variationNameOf", () => {
+  it("reads a variation key as its name", () => {
+    expect(variationNameOf(variations, "on")).toBe("On");
+  });
+
+  it("falls back to the key when the variation is gone", () => {
+    expect(variationNameOf(variations, "ghost")).toBe("ghost");
   });
 });
