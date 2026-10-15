@@ -18,6 +18,7 @@ import {
 } from "../../db/schema/index.js";
 import { env, isProduction } from "../../config/index.js";
 import {
+  dashboardOrigins,
   enabledProviders,
   type OAuthProviderName,
 } from "../../shared/constants.js";
@@ -75,10 +76,7 @@ export function createAuthConfig(emailService: EmailService) {
       usePlural: false,
     }),
 
-    trustedOrigins: [
-      "http://localhost:3000",
-      "https://dariise.yusufadeniyi.dev",
-    ],
+    trustedOrigins: dashboardOrigins,
 
     emailAndPassword: {
       enabled: true,

@@ -70,6 +70,7 @@ import { WorkspaceController } from "./modules/workspace/workspace.controller.js
 import { WorkspaceRepository } from "./modules/workspace/workspace.repository.js";
 import { createWorkspaceRoutes } from "./modules/workspace/workspace.routes.js";
 import { WorkspaceService } from "./modules/workspace/workspace.service.js";
+import { dashboardOrigins } from "./shared/constants.js";
 import { errorResponse } from "./shared/http/errors.js";
 import { sentry } from "@sentry/hono/node";
 
@@ -280,7 +281,7 @@ app.use(sentry(app));
 
 app.use("*", (c, next) =>
   cors({
-    origin: ["http://localhost:3000", "https://flags.iwifunni.cc"],
+    origin: dashboardOrigins,
     credentials: true,
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],

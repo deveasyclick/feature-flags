@@ -1,9 +1,19 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { dashboardOrigins } from "../shared/constants.js";
 import { loadApp } from "./harness.js";
 
-const DASHBOARD_ORIGIN = "https://dariise.yusufadeniyi.dev";
-const LOCAL_ORIGIN = "http://localhost:3000";
+// Read from the list the server allows rather than written out again. A second
+// copy is what let the production origin move in `app.ts` while this file kept
+// asserting the old one - which passes the status and fails the header, so the
+// dashboard is refused by a browser with a green test suite behind it.
+const DASHBOARD_ORIGIN = dashboardOrigins[1] ?? "";
+const LOCAL_ORIGIN = dashboardOrigins[0] ?? "";
+
+// The deployment the dashboard is actually served from. Asserted so that moving
+// the allowed origins is a deliberate act a test states, rather than an edit to a
+// constant that everything else quietly follows.
+const PRODUCTION_DASHBOARD_ORIGIN = "https://flags.iwifunni.cc";
 
 type App = Awaited<ReturnType<typeof loadApp>>;
 
@@ -57,9 +67,15 @@ describe("credentialed CORS", () => {
     // Asserted rather than exercised: Better Auth sets `skipOriginCheck` under
     // `NODE_ENV=test`, so no request here reaches the check that answers an
     // unlisted origin with 403. Without this, a trailing slash is invisible.
-    expect(auth.options.trustedOrigins).toEqual([
+    expect(auth.options.trustedOrigins).toEqual(dashboardOrigins);
+  });
+});
+
+describe("the allowed origins", () => {
+  it("serve the deployment the dashboard is on, and the local one", () => {
+    expect(dashboardOrigins).toEqual([
       LOCAL_ORIGIN,
-      DASHBOARD_ORIGIN,
+      PRODUCTION_DASHBOARD_ORIGIN,
     ]);
   });
 });
