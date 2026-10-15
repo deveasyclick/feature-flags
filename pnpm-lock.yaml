@@ -183,6 +183,15 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.1
         version: 2.1.1(hono@4.13.8)
+      '@sentry/hono':
+        specifier: ^11.7.0
+        version: 11.7.0(@hono/node-server@2.1.1(hono@4.13.8))(@sentry/cloudflare@11.7.0)(@sentry/node@11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6))(hono@4.13.8)
+      '@sentry/node':
+        specifier: ^11.7.0
+        version: 11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6)
+      '@sentry/profiling-node':
+        specifier: ^11.7.0
+        version: 11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6)
       better-auth:
         specifier: ^1.7.5
         version: 1.7.5(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.0))(next@16.3.5(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@5.0.1(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(jsdom@25.0.1(supports-color@7.2.0))(vite@8.3.0(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)))
@@ -2671,11 +2680,40 @@ packages:
     resolution: {integrity: sha512-DHnYyAZAh5ytm8gwrCaYq71/7cojGJrjH9w24yMsIcEY+6B01JT0AS2KyseMWh6jeeuPKFWD7FgPnS92Z8Nepw==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
 
+  '@sentry/hono@11.7.0':
+    resolution: {integrity: sha512-C/K8YQk6Lll+iwmCXvqjsTXYUGq+x72dxx+tPGYExdi20HmHV6DCxZZHWD++j6hraBsQu83uJ8w0xDxmv57Aow==}
+    engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
+    peerDependencies:
+      '@cloudflare/workers-types': ^4.x || ^5.x
+      '@hono/node-server': ^1.x || ^2.x
+      '@sentry/bun': 11.7.0
+      '@sentry/cloudflare': 11.7.0
+      '@sentry/deno': 11.7.0
+      '@sentry/node': 11.7.0
+      hono: ^4.x
+    peerDependenciesMeta:
+      '@cloudflare/workers-types':
+        optional: true
+      '@hono/node-server':
+        optional: true
+      '@sentry/bun':
+        optional: true
+      '@sentry/cloudflare':
+        optional: true
+      '@sentry/deno':
+        optional: true
+      '@sentry/node':
+        optional: true
+
   '@sentry/nextjs@11.7.0':
     resolution: {integrity: sha512-N4gebaJdOmiUhEtQO96eKArzTUro57+LsuFmnMvgej/EjbZQTDI0LDF067nS5GvS09Va07GR910mUa8XYwaZ6g==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
     peerDependencies:
       next: ^14.0 || ^15.0.0-rc.0 || ^16.0.0-0
+
+  '@sentry/node-cpu-profiler@2.4.4':
+    resolution: {integrity: sha512-FaYbFWxEyTTVqXLJccokJCkwx2cTuvTiRaM9kA+O4HbZVT49xYXqSV9cNLI5UqJhgdHiZDhelBd5LB4wj7IIRA==}
+    engines: {node: '>=18'}
 
   '@sentry/node@11.7.0':
     resolution: {integrity: sha512-QDqFfZSfEHt07HI8oJcOTTio9yjkKv6UXLEwl+T2NxSU0Tc+b5uEDIsT8/kMgBSuEZxij9Sl6Gnz5sSjkOTdmA==}
@@ -2686,6 +2724,10 @@ packages:
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
+
+  '@sentry/profiling-node@11.7.0':
+    resolution: {integrity: sha512-O0kaxqQL2DIOnKD02BfaalGR0l0shmGs7/D3u1k0v6Fg5uO6aSmZqtXG/WDoqivVoP1fyPcFlIx+KTE9T/A+pw==}
+    engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
 
   '@sentry/react@11.7.0':
     resolution: {integrity: sha512-80GZJa6+VRGk06GcxH1QpAY3Qjj/H1NYdma2LzRnp8yplNpUqm7r/Ckisbu4VwEx3mZcspCsZqEf5CnHh2isCw==}
@@ -5200,6 +5242,10 @@ packages:
         optional: true
       sass:
         optional: true
+
+  node-abi@3.98.0:
+    resolution: {integrity: sha512-Llh8noNw7s15m+rmIrZnZQbe4gLyasL9loT74rC92PkmwWKeEedKvc7o6pjp8B3MhrYT/Cl846NOYZbz1wmddw==}
+    engines: {node: '>=10'}
 
   node-exports-info@1.6.2:
     resolution: {integrity: sha512-kXs9Go0cah0qHVV2v389IXQLdLCeE1xfFtjOAF+iobu0OIoG1pje8At2vMHyaPMiPMnG/LWP50twML21eMcAag==}
@@ -8463,6 +8509,18 @@ snapshots:
     dependencies:
       '@sentry/core': 11.7.0
 
+  '@sentry/hono@11.7.0(@hono/node-server@2.1.1(hono@4.13.8))(@sentry/cloudflare@11.7.0)(@sentry/node@11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6))(hono@4.13.8)':
+    dependencies:
+      '@opentelemetry/api': 1.9.1
+      '@sentry/conventions': 0.27.0
+      '@sentry/core': 11.7.0
+      '@sentry/server-utils': 11.7.0
+      hono: 4.13.8
+    optionalDependencies:
+      '@hono/node-server': 2.1.1(hono@4.13.8)
+      '@sentry/cloudflare': 11.7.0
+      '@sentry/node': 11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6)
+
   '@sentry/nextjs@11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(next@16.3.5(@babel/core@7.29.7(supports-color@7.2.0))(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@opentelemetry/api': 1.9.1
@@ -8489,6 +8547,11 @@ snapshots:
       - webpack
       - wrangler
 
+  '@sentry/node-cpu-profiler@2.4.4':
+    dependencies:
+      detect-libc: 2.1.2
+      node-abi: 3.98.0
+
   '@sentry/node@11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6)':
     dependencies:
       '@opentelemetry/api': 1.9.1
@@ -8508,6 +8571,16 @@ snapshots:
       '@opentelemetry/api': 1.9.1
       '@sentry/conventions': 0.27.0
       '@sentry/core': 11.7.0
+
+  '@sentry/profiling-node@11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6)':
+    dependencies:
+      '@sentry/core': 11.7.0
+      '@sentry/node': 11.7.0(@babel/core@7.29.7(supports-color@7.2.0))(rollup@4.64.6)
+      '@sentry/node-cpu-profiler': 2.4.4
+    transitivePeerDependencies:
+      - '@babel/core'
+      - rollup
+      - webpack
 
   '@sentry/react@11.7.0(react@19.2.8)':
     dependencies:
@@ -11415,6 +11488,10 @@ snapshots:
       - '@babel/core'
       - '@types/node'
       - babel-plugin-macros
+
+  node-abi@3.98.0:
+    dependencies:
+      semver: 7.8.5
 
   node-exports-info@1.6.2:
     dependencies:

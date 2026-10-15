@@ -71,6 +71,7 @@ import { WorkspaceRepository } from "./modules/workspace/workspace.repository.js
 import { createWorkspaceRoutes } from "./modules/workspace/workspace.routes.js";
 import { WorkspaceService } from "./modules/workspace/workspace.service.js";
 import { errorResponse } from "./shared/http/errors.js";
+import { sentry } from "@sentry/hono/node";
 
 const emailService = new EmailService(
   new BrevoTransport(),
@@ -275,6 +276,7 @@ export const app = new Hono();
 
 app.use("*", secureHeaders());
 app.use("*", logger());
+app.use(sentry(app));
 
 app.use("*", (c, next) =>
   cors({
@@ -306,6 +308,18 @@ app.get("/readyz", async (c) => {
     { status: ready ? "ready" : "unready", checks },
     ready ? 200 : 503,
   );
+});
+
+import * as Sentry from "@sentry/hono/node";
+
+app.get("/debug-sentry", () => {
+  // Send a log before throwing the error
+  Sentry.logger.info("User triggered test error", {
+    action: "test_error_endpoint",
+  });
+  // Send a test metric before throwing the error
+  Sentry.metrics.count("test_counter", 1);
+  throw new Error("My first Sentry error!");
 });
 
 app.route("/", authRoutes);

@@ -19,3 +19,4 @@ allowBuilds:
   # Its install script selects the platform-specific binary; without it neither
   # tool can start.
   esbuild: true
+  '@sentry/node-cpu-profiler': true
