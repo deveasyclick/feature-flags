@@ -45,3 +45,4 @@ venv/
 !.vscode/extensions.json
 .agents/
 .agent-teams/
+.claude/
