@@ -47,6 +47,7 @@ import {
 import type { EnvironmentColor } from "@/lib/environment-color";
 import * as api from "@/lib/api";
 import { toWorkspaceSlug } from "@/lib/validation";
+import { capture } from "@/shared/analytics";
 
 const steps = ["Details", "Flags", "Review"] as const;
 
@@ -228,6 +229,12 @@ export function CreateEnvironmentForm({
     try {
       await api.environments.create(projectKey, input(), {
         signal: controller.signal,
+      });
+
+      capture("environment_created", {
+        color,
+        initial_flag_status: initialStatus,
+        copied_from_existing_environment: copiesFromSource,
       });
 
       // Straight to the list: the new environment is there, and the SDK key is

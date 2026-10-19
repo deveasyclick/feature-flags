@@ -207,19 +207,55 @@ pnpm dlx shadcn@latest add <component>
 `NEXT_PUBLIC_*`; configuration is read in `shared/env.ts` (copy
 `apps/web/.env.example`), the only module in this app that touches `process.env`.
 Import it as `import env from "shared/env"` and read `env.environment`,
-`env.apiUrl` and `env.apiInternalUrl`. Only variables prefixed with `NEXT_PUBLIC_`
-reach the browser.
+`env.apiUrl`, `env.apiInternalUrl`, `env.analyticsKey` and `env.analyticsHost`.
+Only variables prefixed with `NEXT_PUBLIC_` reach the browser.
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | Base URL of the Iwifunni API, as reached from the browser. Required for production builds. |
 | `API_INTERNAL_URL` | `http://localhost:4000` | Server-only. Used by Server Components to call the API without a round trip through the public origin. |
+| `NEXT_PUBLIC_POSTHOG_KEY` | unset | PostHog project token. Unset or empty disables browser analytics. |
+| `NEXT_PUBLIC_POSTHOG_HOST` | unset | PostHog ingestion host for that project, e.g. `https://us.i.posthog.com`. Required alongside the token. |
 
 See `docs/architecture.md` §8.3 for the intended cookie and origin setup. Today the
 dashboard and the API are separate origins in development, and the client sends
 `credentials: "include"` against the API's origin allowlist; a reverse
 proxy under the web origin is still the intended production arrangement, so the
 session cookie never leaves the first-party site.
+
+## Analytics
+
+Product analytics is browser-side only. `instrumentation-client.ts` initialises
+PostHog once, before hydration, from `env.analyticsKey`/`env.analyticsHost`, and
+every call site goes through `shared/analytics.ts`: `capture`, `identify`,
+`captureException` and `reset` there are no-ops when the two public variables are
+unset, so a checkout without a PostHog project runs normally and sends nothing.
+
+Identification rides the Better Auth `session.user.id`, so events, replays and
+exceptions join the same person. Name, email and workspace role go as person
+properties only. Sign-out calls `reset(true)`, which clears the persisted
+distinct ID too, so the next account on the same browser does not inherit the
+previous person.
+
+The ten product events, each captured only after its write succeeds:
+
+| Event | Fired by |
+| --- | --- |
+| `workspace_created` | `components/auth/create-workspace-form.tsx` |
+| `project_created` | `components/app/projects/create-project-form.tsx` |
+| `environment_created` | `components/app/environments/create-environment-form.tsx` |
+| `feature_flag_created` | `components/app/flags/create-flag-form.tsx` |
+| `feature_flag_configuration_published` | `components/app/flags/flag-configuration.tsx` |
+| `feature_flag_targeting_published` | `components/app/flags/flag-targeting.tsx` |
+| `feature_flag_change_request_decided` | `components/app/flags/flag-approval.tsx` |
+| `segment_created` | `components/app/segments/create-segment-form.tsx` |
+| `api_key_created` | `components/app/api-keys/create-api-key-form.tsx` |
+| `api_key_rotated` | `components/app/api-keys/rotate-api-key-dialog.tsx` |
+
+The API carries no PostHog client: a server-side integration was tried and
+removed, so one action is never captured twice. Sentry remains the error tracker;
+`app/global-error.tsx` reports a boundary failure to both so the PostHog
+exception links to the session it happened in.
 
 ## Notes
 

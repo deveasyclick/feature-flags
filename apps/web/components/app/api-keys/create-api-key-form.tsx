@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ApiError, apiKeys } from "@/lib/api";
+import { capture } from "@/shared/analytics";
 
 type CreateApiKeyField = "name" | "expiresInDays";
 
@@ -117,6 +118,9 @@ export function CreateApiKeyForm({
     try {
       const created = await apiKeys.create(projectKey, input(), {
         signal: controller.signal,
+      });
+      capture("api_key_created", {
+        expiration,
       });
       onCreated(created);
     } catch (error) {

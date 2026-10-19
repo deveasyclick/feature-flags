@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, segments } from "@/lib/api";
+import { capture } from "@/shared/analytics";
 import {
   firstConditionError,
   formatConditionSummary,
@@ -182,6 +183,9 @@ export function CreateSegmentForm({ projectKey }: { readonly projectKey: string 
     try {
       const created = await segments.create(projectKey, payload(), {
         signal: controller.signal,
+      });
+      capture("segment_created", {
+        condition_count: rules.length,
       });
       setCreatedKey(created.key);
     } catch (error) {

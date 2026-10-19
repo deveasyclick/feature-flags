@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, changeRequests } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/format";
+import { capture } from "@/shared/analytics";
 
 interface FlagApprovalPanelProps {
   readonly projectKey: string;
@@ -70,6 +71,10 @@ export function FlagApprovalPanel({
           signal: controller.signal,
         });
       }
+
+      capture("feature_flag_change_request_decided", {
+        decision,
+      });
 
       setRejecting(false);
       setNote("");

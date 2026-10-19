@@ -42,6 +42,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, flags as flagsApi } from "@/lib/api";
 import { toWorkspaceSlug } from "@/lib/validation";
+import { capture } from "@/shared/analytics";
 
 const flagTypes: Array<{
   value: FlagType;
@@ -364,6 +365,12 @@ export function CreateFlagForm({
     try {
       const created = await flagsApi.create(projectKey, input(), {
         signal: controller.signal,
+      });
+
+      capture("feature_flag_created", {
+        flag_type: type,
+        variation_count: variations.length,
+        tag_count: tags.length,
       });
 
       /**

@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import type { EnvironmentColor } from "@/lib/environment-color";
 import * as api from "@/lib/api";
 import { selectProject } from "@/lib/scope-actions";
+import { capture } from "@/shared/analytics";
 import { isRequired } from "@/lib/validation";
 
 const starterEnvironmentNames = STARTER_ENVIRONMENTS.map(({ name }) => name);
@@ -68,6 +69,10 @@ export function CreateProjectForm() {
       );
 
       await selectProject(project.key);
+
+      capture("project_created", {
+        starter_environment_count: STARTER_ENVIRONMENTS.length,
+      });
 
       router.refresh();
       router.push(`/projects/${project.key}`);

@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ApiError, changeRequests as changeRequestsApi, flags as flagsApi } from "@/lib/api";
+import { capture } from "@/shared/analytics";
 import {
   conditionDraftsFrom,
   conditionsNeedValues,
@@ -510,6 +511,13 @@ export function FlagTargeting({
           { signal: controller.signal },
         );
 
+        capture("feature_flag_targeting_published", {
+          publish_mode: "submitted_for_approval",
+          rule_count: nextRules.length,
+          individual_target_count: targets.length,
+          default_variation_changed: changesServing,
+        });
+
         setSubmitted(true);
         router.refresh();
         return;
@@ -538,6 +546,12 @@ export function FlagTargeting({
           saved.defaultVariation,
         ),
       );
+      capture("feature_flag_targeting_published", {
+        publish_mode: "published",
+        rule_count: saved.rules.length,
+        individual_target_count: saved.individualTargets.length,
+        default_variation_changed: changesServing,
+      });
       setPublished(true);
       router.refresh();
     } catch (publishError) {

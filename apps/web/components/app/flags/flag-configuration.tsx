@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ApiError, changeRequests as changeRequestsApi, flags as flagsApi } from "@/lib/api";
+import { capture } from "@/shared/analytics";
 
 /**
  * Configuration tab.
@@ -103,6 +104,12 @@ export function FlagConfiguration({
           { signal: controller.signal },
         );
 
+        capture("feature_flag_configuration_published", {
+          publish_mode: "submitted_for_approval",
+          enabled,
+          rollout_percentage: percentage,
+        });
+
         setPublished(null);
         setSubmitted(true);
         router.refresh();
@@ -121,6 +128,11 @@ export function FlagConfiguration({
       setOffVariation(updated.offVariation);
       setServing(updated.defaultVariation);
       setPercentage(updated.rolloutPercentage);
+      capture("feature_flag_configuration_published", {
+        publish_mode: "published",
+        enabled: updated.enabled,
+        rollout_percentage: updated.rolloutPercentage,
+      });
       setPublished("just now");
       // The identity strip above the tabs is a Server Component, so its
       // Enabled/Disabled badge only moves when the server data is re-read.

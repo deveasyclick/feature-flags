@@ -28,6 +28,7 @@ export const ENVIRONMENT_COOKIE = "iwifunni.environment";
 
 /** The signed-in user as the chrome renders them. */
 export interface ChromeUser {
+  id: string;
   name: string;
   email: string;
   initials: string;
@@ -60,6 +61,7 @@ export function initialsOf(name: string): string {
 /** The signed-in user in the shape the sidebar, topbar and profile screens use. */
 export function toChromeUser(session: MeResponse): ChromeUser {
   return {
+    id: session.user.id,
     name: session.user.name,
     email: session.user.email,
     initials: initialsOf(session.user.name),

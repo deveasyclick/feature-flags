@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import type { CreatedApiKey } from "@iwifunni/contracts";
 import { ApiError, apiKeys } from "@/lib/api";
+import { capture } from "@/shared/analytics";
 
 /**
  * The rotate flow for one key: confirm, then read the new secret.
@@ -48,11 +49,11 @@ function RotateApiKeyBody({
     controllerRef.current = controller;
 
     try {
-      setRotated(
-        await apiKeys.rotate(projectKey, apiKey.id, {
-          signal: controller.signal,
-        }),
-      );
+      const rotatedKey = await apiKeys.rotate(projectKey, apiKey.id, {
+        signal: controller.signal,
+      });
+      capture("api_key_rotated");
+      setRotated(rotatedKey);
     } catch (caught) {
       if ((caught as Error)?.name === "AbortError") return;
 

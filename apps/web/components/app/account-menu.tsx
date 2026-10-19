@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { identify, reset } from "@/shared/analytics";
 import { signOut } from "@/lib/auth";
 import type { ChromeUser } from "@/lib/scope";
 
@@ -25,6 +26,14 @@ export function AccountMenu({ user }: { readonly user: ChromeUser }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    identify(user.id, {
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
+  }, [user]);
 
   async function handleSignOut() {
     if (pending) return;
@@ -35,6 +44,7 @@ export function AccountMenu({ user }: { readonly user: ChromeUser }) {
 
     try {
       await signOut(controller.signal);
+      reset();
       router.push("/");
     } catch (error) {
       if ((error as Error)?.name === "AbortError") return;

@@ -45,6 +45,19 @@ function readApiInternalUrl(): string {
 }
 
 /**
+ * A public variable that may legitimately be absent.
+ *
+ * Unset and empty answer the same way, because a copied `.env.example` leaves
+ * the value empty and that has to mean "not configured" rather than
+ * "configured with a blank token".
+ */
+function readOptionalPublic(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : undefined;
+}
+
+/**
  * The application's configuration.
  *
  *   import env from "shared/env";
@@ -55,6 +68,11 @@ const env = {
   environment: readEnvironment(),
   apiUrl: readApiUrl(),
   apiInternalUrl: readApiInternalUrl(),
+  // Browser analytics. Both are optional: without them the app runs and sends
+  // nothing, which is what a local checkout that has not configured PostHog and
+  // every test do.
+  analyticsKey: readOptionalPublic(process.env.NEXT_PUBLIC_POSTHOG_KEY),
+  analyticsHost: readOptionalPublic(process.env.NEXT_PUBLIC_POSTHOG_HOST),
 } as const;
 
 export default env;

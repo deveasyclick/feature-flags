@@ -8,6 +8,7 @@ import { OnboardingSteps } from "@/components/auth/onboarding-steps";
 import { Field, FieldError, PrefixedField } from "@/components/auth/field";
 import { Button } from "@/components/ui/button";
 import { AuthError, createWorkspace } from "@/lib/auth";
+import { capture } from "@/shared/analytics";
 import { workspaceHost } from "@/components/app/settings/settings-options";
 import {
   isRequired,
@@ -81,6 +82,13 @@ export function CreateWorkspaceForm() {
         },
         controller.signal,
       );
+
+      capture("workspace_created", {
+        invited_teammate_count: invites
+          .split(",")
+          .map((invite) => invite.trim())
+          .filter(Boolean).length,
+      });
 
       router.refresh();
       router.push("/create-project");
