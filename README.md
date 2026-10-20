@@ -1,6 +1,10 @@
-# Iwifunni
+# Feature Flags — Iwifunni
 
 > Feature management and progressive delivery for modern applications.
+
+This repository contains the **Iwifunni feature-management platform**. It is separate
+from [Iwifunni Notifications](https://github.com/deveasyclick/iwifunni), which handles
+email, SMS, and push delivery. Internal package names retain the Iwifunni brand.
 
 Iwifunni is a developer-focused feature management platform for safely controlling
 application features without requiring a new deployment.
@@ -473,4 +477,4 @@ in the `Status` section of each [document](#documentation); this is what remains
 
 ## License
 
-MIT
+[MIT](LICENSE)
