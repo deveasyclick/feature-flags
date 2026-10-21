@@ -13,7 +13,7 @@ export default async function GettingStartedLayout({
   const session = await getSession();
 
   if (!session) {
-    redirect("/");
+    redirect("/sign-in");
   }
 
   if (!session.workspace) {

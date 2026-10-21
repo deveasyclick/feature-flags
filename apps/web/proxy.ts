@@ -31,7 +31,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const signIn = new URL("/", request.url);
+  const signIn = new URL("/sign-in", request.url);
 
   /**
    * Preserve where the user was heading. Only the pathname is carried, never the

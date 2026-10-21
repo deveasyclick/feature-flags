@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const session = await getSession();
 
   if (!session) {
-    redirect("/");
+    redirect("/sign-in");
   }
 
   if (!session.workspace) {

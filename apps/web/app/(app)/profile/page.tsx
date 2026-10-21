@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 export default async function ProfilePage() {
   const session = await getSession();
 
-  if (!session) redirect("/");
+  if (!session) redirect("/sign-in");
 
   const { environments, environment } = await getScope();
 

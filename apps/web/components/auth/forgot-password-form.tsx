@@ -140,7 +140,7 @@ export function ForgotPasswordForm() {
         backLink={<BackToSignIn />}
       >
         <Button asChild className="w-full">
-          <Link href="/">Return to sign in</Link>
+          <Link href="/sign-in">Return to sign in</Link>
         </Button>
       </AuthCard>
     );
@@ -303,7 +303,7 @@ export function ForgotPasswordForm() {
 function BackToSignIn() {
   return (
     <Link
-      href="/"
+      href="/sign-in"
       className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
     >
       <ArrowLeftIcon aria-hidden="true" className="size-4" />

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Sign in to your Iwifunni workspace.",
 };
 
-export default async function SignInPage({ searchParams }: PageProps<"/">) {
+export default async function SignInPage({ searchParams }: PageProps<"/sign-in">) {
   const [params, providers] = await Promise.all([
     searchParams,
     getEnabledProviders(),
