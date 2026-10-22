@@ -1,9 +1,23 @@
 import { Hono } from "hono";
+import {
+  NotificationsRepository,
+  NotificationsService,
+  NotificationsController,
+  createNotificationsRoutes,
+} from "./modules/notifications/index.js";
+import {
+  AnalyticsRepository,
+  AnalyticsService,
+  AnalyticsController,
+  createAnalyticsRoutes,
+} from "./modules/analytics/index.js";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
+import { bodyLimit } from "hono/body-limit";
+import { createRequestLimits } from "./middleware/request-limits.js";
 
-import { env } from "./config/index.js";
+import { env, environment as runtimeEnvironment } from "./config/index.js";
 import { pool } from "./db/client.js";
 import { BrevoTransport } from "./integrations/brevo/index.js";
 import { createSessionMiddleware } from "./middleware/authorization.js";
@@ -71,11 +85,13 @@ import { WorkspaceRepository } from "./modules/workspace/workspace.repository.js
 import { createWorkspaceRoutes } from "./modules/workspace/workspace.routes.js";
 import { WorkspaceService } from "./modules/workspace/workspace.service.js";
 import { dashboardOrigins } from "./shared/constants.js";
-import { errorResponse } from "./shared/http/errors.js";
+import { ApiError, errorResponse } from "./shared/http/errors.js";
 import { sentry } from "@sentry/hono/node";
 
 const emailService = new EmailService(
-  new BrevoTransport(),
+  runtimeEnvironment === "test"
+    ? { send: async () => ({ messageId: "test-email" }) }
+    : new BrevoTransport(),
   new EmailRenderer(),
 );
 
@@ -108,6 +124,18 @@ const sdkRepository = new SdkRepository();
 const workspaceRepository = new WorkspaceRepository();
 
 const projectAccessService = new ProjectAccessService(projectAccessRepository);
+const notificationsController = new NotificationsController(
+  new NotificationsService(new NotificationsRepository(), projectAccessService),
+);
+const analyticsService = new AnalyticsService(
+  new AnalyticsRepository(),
+  projectAccessService,
+);
+const analyticsController = new AnalyticsController(analyticsService);
+export const retainEvaluationEvents = async (): Promise<void> => {
+  await analyticsService.retain();
+  await auditLogService.retain();
+};
 const segmentsService = new SegmentsService(
   segmentsRepository,
   projectAccessService,
@@ -134,7 +162,9 @@ const apiKeysService = new ApiKeysService(
 const apiKeyMiddleware = createApiKeyMiddleware((secret) =>
   apiKeysService.resolveApiKey(secret),
 );
-const sdkService = new SdkService(sdkRepository);
+const sdkService = new SdkService(sdkRepository, (secret) =>
+  apiKeysService.resolveApiKey(secret),
+);
 const sdkController = new SdkController(sdkService);
 const auditLogService = new AuditLogService(
   auditLogRepository,
@@ -188,11 +218,18 @@ const projectMembersService = new ProjectMembersService(
   projectMembersRepository,
   projectAccessService,
 );
-const evaluationService = new EvaluationService(evaluationRepository);
+const evaluationService = new EvaluationService(
+  evaluationRepository,
+  projectAccessService,
+);
 
 const authController = new AuthController(authService);
 const projectsController = new ProjectsController(projectsService);
 const flagsController = new FlagsController(flagsService);
+export const runDueFlagSchedules = (now?: Date): Promise<number> =>
+  flagsService.runDueSchedules(now);
+export const runFlagRollbackPolicies = (now?: Date): Promise<number> =>
+  flagsService.runRollbackPolicies(now);
 const environmentsController = new EnvironmentsController(environmentsService);
 const segmentsController = new SegmentsController(segmentsService);
 const apiKeysController = new ApiKeysController(apiKeysService);
@@ -276,13 +313,28 @@ const workspaceRoutes = createWorkspaceRoutes({
 export const app = new Hono();
 
 app.use("*", secureHeaders());
+app.use(
+  "*",
+  bodyLimit({
+    maxSize: 1024 * 1024,
+    onError: () => {
+      throw ApiError.payloadTooLarge();
+    },
+  }),
+);
+app.use(
+  "*",
+  createRequestLimits(
+    runtimeEnvironment === "test" ? 0 : env.requestsPerMinute,
+  ),
+);
 app.use("*", logger());
 app.use(sentry(app));
 
 app.use("*", (c, next) =>
   cors({
-    origin: dashboardOrigins,
-    credentials: true,
+    origin: c.req.path === "/v1/sdk/evaluate" ? "*" : dashboardOrigins,
+    credentials: c.req.path !== "/v1/sdk/evaluate",
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     maxAge: 600,
@@ -311,18 +363,6 @@ app.get("/readyz", async (c) => {
   );
 });
 
-import * as Sentry from "@sentry/hono/node";
-
-app.get("/debug-sentry", () => {
-  // Send a log before throwing the error
-  Sentry.logger.info("User triggered test error", {
-    action: "test_error_endpoint",
-  });
-  // Send a test metric before throwing the error
-  Sentry.metrics.count("test_counter", 1);
-  throw new Error("My first Sentry error!");
-});
-
 app.route("/", authRoutes);
 app.route("/v1/projects", projectRoutes);
 app.route("/v1/projects", environmentRoutes);
@@ -334,8 +374,20 @@ app.route("/", accountRoutes);
 app.route("/v1/projects", projectMemberRoutes);
 app.route("/", evaluationRoutes);
 app.route("/", sdkRoutes);
+app.route(
+  "/",
+  createAnalyticsRoutes(
+    analyticsController,
+    sessionMiddleware,
+    apiKeyMiddleware,
+  ),
+);
 app.route("/", workspaceRoutes);
 app.route("/", flagRoutes);
+app.route(
+  "/v1/notifications",
+  createNotificationsRoutes(notificationsController, sessionMiddleware),
+);
 
 app.notFound((c) =>
   c.json(
