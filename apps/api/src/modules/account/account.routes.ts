@@ -1,12 +1,8 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono } from "hono";
 
 import type { SessionEnv } from "../auth/auth.types.js";
-import type { AccountController } from "./account.controller.js";
-
-export interface AccountRoutesDeps {
-  controller: AccountController;
-  sessionMiddleware: MiddlewareHandler;
-}
+import type { AccountRoutesDeps } from "./account.types.js";
+export type { AccountRoutesDeps } from "./account.types.js";
 
 /**
  * Mounted at `/`. `GET /v1/me` stays with the auth module; this router adds the
@@ -20,10 +16,14 @@ export function createAccountRoutes({
 
   routes.use("*", sessionMiddleware);
 
+  routes.get("/v1/me/preferences", (c) => controller.getPreferences(c));
+
   routes.patch("/v1/me", (c) => controller.updateProfile(c));
   routes.post("/v1/me/password", (c) => controller.changePassword(c));
   routes.patch("/v1/me/preferences", (c) => controller.updatePreferences(c));
-  routes.patch("/v1/me/notifications", (c) => controller.updateNotifications(c));
+  routes.patch("/v1/me/notifications", (c) =>
+    controller.updateNotifications(c),
+  );
 
   return routes;
 }

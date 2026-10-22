@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql, inArray } from "drizzle-orm";
 
 import { db } from "../../db/client.js";
 import { auditLog, project } from "../../db/schema/index.js";
@@ -14,6 +14,9 @@ function splitCursor(cursor: string): { createdAt: string; id: string } | null {
 }
 
 export class AuditLogRepository {
+  async deleteExpired(before: Date): Promise<void> {
+    await db.delete(auditLog).where(lt(auditLog.createdAt, before));
+  }
   /** Fetches limit + 1 rows so the caller can tell whether another page exists. */
   async list(
     organizationId: string,
@@ -21,6 +24,11 @@ export class AuditLogRepository {
   ): Promise<AuditLogRow[]> {
     // The tenant key is the session's workspace, never a request parameter.
     const conditions = [eq(auditLog.organizationId, organizationId)];
+
+    if (filter.projectIds) {
+      if (filter.projectIds.length === 0) return [];
+      conditions.push(inArray(auditLog.projectId, filter.projectIds));
+    }
 
     if (filter.projectId) {
       conditions.push(eq(auditLog.projectId, filter.projectId));

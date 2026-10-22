@@ -24,6 +24,22 @@ export class AccountService {
     private readonly authService: AuthService,
   ) {}
 
+  async getPreferences(userId: string): Promise<UserPreferences> {
+    const row = await this.repository.findPreferences(userId);
+    return row
+      ? toUserPreferences(row)
+      : {
+          theme: "system",
+          defaultProjectId: null,
+          defaultEnvironmentId: null,
+          notifications: {
+            flagChanges: true,
+            weeklyDigest: false,
+            incidentAlerts: true,
+          },
+        };
+  }
+
   async updateProfile(
     headers: Headers,
     user: RequestUser,

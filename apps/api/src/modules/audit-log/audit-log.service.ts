@@ -1,7 +1,4 @@
-import type {
-  AuditLogEntry,
-  AuditLogQuery,
-} from "@iwifunni/contracts";
+import type { AuditLogEntry, AuditLogQuery } from "@iwifunni/contracts";
 
 import { ApiError } from "../../shared/http/errors.js";
 import { decodeCursor, toPage } from "../../shared/pagination.js";
@@ -19,6 +16,9 @@ import {
  * transaction. Viewer-level access is enough for both lists.
  */
 export class AuditLogService {
+  async retain(): Promise<void> {
+    await this.repository.deleteExpired(new Date(Date.now() - 90 * 86_400_000));
+  }
   constructor(
     private readonly repository: AuditLogRepository,
     private readonly projectAccess: ProjectAccessService,
@@ -43,13 +43,15 @@ export class AuditLogService {
     context: AuditLogActorContext,
     query: AuditLogQuery,
   ): Promise<Page<AuditLogEntry>> {
-    return this.page(context.organizationId, query, {});
+    return this.page(context.organizationId, query, {
+      projectIds: await this.projectAccess.visibleProjectIds(context),
+    });
   }
 
   private async page(
     organizationId: string,
     query: AuditLogQuery,
-    scope: { projectId?: string },
+    scope: { projectId?: string; projectIds?: string[] | null },
   ): Promise<Page<AuditLogEntry>> {
     const rows = await this.repository.list(organizationId, {
       ...scope,

@@ -1,4 +1,11 @@
 import type { Theme } from "@iwifunni/contracts";
+import type { MiddlewareHandler } from "hono";
+import type { AccountController } from "./account.controller.js";
+
+export interface AccountRoutesDeps {
+  controller: AccountController;
+  sessionMiddleware: MiddlewareHandler;
+}
 
 export interface PreferencesRow {
   userId: string;

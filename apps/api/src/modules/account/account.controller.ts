@@ -6,13 +6,21 @@ import {
 } from "@iwifunni/contracts";
 import type { Context } from "hono";
 
-import { requireSession, requireWorkspace } from "../../middleware/authorization.js";
+import {
+  requireSession,
+  requireWorkspace,
+} from "../../middleware/authorization.js";
 import { ApiError } from "../../shared/http/errors.js";
 import type { SessionEnv } from "../auth/auth.types.js";
 import type { AccountService } from "./account.service.js";
 
 export class AccountController {
   constructor(private readonly service: AccountService) {}
+
+  async getPreferences(c: Context<SessionEnv>): Promise<Response> {
+    const context = await requireSession(c);
+    return c.json(await this.service.getPreferences(context.user.id));
+  }
 
   async updateProfile(c: Context<SessionEnv>): Promise<Response> {
     const context = await requireSession(c);

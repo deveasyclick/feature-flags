@@ -12,6 +12,7 @@ export interface AuditLogRow {
 }
 
 export interface AuditLogFilter {
+  projectIds?: string[] | null;
   /** Absent for the workspace-wide list. */
   projectId?: string;
   environmentId?: string;
