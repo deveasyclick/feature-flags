@@ -71,6 +71,147 @@ function clientFor(
 }
 
 describe("conformance", () => {
+  it("reports application outcomes separately and includes the evaluated release version", async () => {
+    const entry = CORPUS.snapshot[0];
+    if (!entry) throw new Error("The conformance corpus is empty.");
+    const batches: Array<{
+      events: Array<{ kind: string; outcome: string; flagVersion: number }>;
+    }> = [];
+    let version = 2;
+    const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/events")) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response(null, { status: 202 });
+      }
+      return new Response(
+        JSON.stringify({
+          ...entry.config,
+          flags: entry.config.flags.map((flag) => ({ ...flag, version })),
+        }),
+      );
+    }) as typeof globalThis.fetch;
+    const client = new FeatureFlags({
+      sdkKey: "ff_test.abc",
+      telemetry: true,
+      refreshIntervalMs: 0,
+      fetch: fetchImpl,
+    });
+    try {
+      await client.initialize();
+      const decision = client.evaluate(entry.expect.flag);
+      await client.flush();
+      batches.length = 0;
+      version = 3;
+      await client.initialize();
+      expect(client.config?.flags[0]?.version).toBe(3);
+      client.trackOutcome(decision, false);
+      client.trackOutcome(decision, true);
+      await client.flush();
+      expect(batches[0]?.events).toMatchObject([
+        { kind: "outcome", outcome: "error", flagVersion: 2 },
+        { kind: "outcome", outcome: "success", flagVersion: 2 },
+      ]);
+    } finally {
+      client.close();
+    }
+  });
+
+  it("refreshes on a streamed version notification and cancels the stream on close", async () => {
+    const entry = CORPUS.snapshot[0];
+    if (!entry) throw new Error("The conformance corpus is empty.");
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    let cancelled = false;
+    let configCalls = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      start(value) {
+        controller = value;
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const fetchImpl = (async (url: unknown) => {
+      if (String(url).endsWith("/stream"))
+        return new Response(stream, {
+          headers: { "content-type": "text/event-stream" },
+        });
+      configCalls++;
+      return new Response(
+        JSON.stringify({
+          ...entry.config,
+          version: configCalls === 1 ? "one" : "two",
+        }),
+        { status: 200 },
+      );
+    }) as typeof globalThis.fetch;
+    const client = new FeatureFlags({
+      sdkKey: "ff_test.abc",
+      streaming: true,
+      refreshIntervalMs: 0,
+      fetch: fetchImpl,
+    });
+    try {
+      await client.initialize();
+      controller?.enqueue(
+        new TextEncoder().encode(
+          'event: configuration\ndata: {"version":"two"}\n\n',
+        ),
+      );
+      await vi.waitFor(() => expect(client.config?.version).toBe("two"));
+      expect(configCalls).toBe(2);
+      controller?.enqueue(
+        new TextEncoder().encode("event: revoked\ndata: {}\n\n"),
+      );
+      await vi.waitFor(() => expect(client.config).toBeNull());
+    } finally {
+      client.close();
+    }
+    await vi.waitFor(() => expect(cancelled).toBe(true));
+  });
+
+  it("buffers opt-in telemetry and retries with the same event identifiers", async () => {
+    const entry = CORPUS.snapshot[0];
+    if (!entry) throw new Error("The conformance corpus is empty.");
+    const batches: Array<{
+      events: Array<{ id: string; flagKey: string; userId: string }>;
+    }> = [];
+    const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+      if (String(url).endsWith("/events")) {
+        batches.push(JSON.parse(String(init?.body)));
+        return new Response(null, { status: batches.length === 1 ? 503 : 202 });
+      }
+      return new Response(JSON.stringify(entry.config), { status: 200 });
+    }) as typeof globalThis.fetch;
+    const errors = vi.fn(() => {
+      throw new Error("The consumer's error handler failed.");
+    });
+    const client = new FeatureFlags({
+      sdkKey: "ff_test.abc",
+      fetch: fetchImpl,
+      telemetry: true,
+      refreshIntervalMs: 0,
+      onError: errors,
+    });
+    try {
+      await client.initialize();
+      client.isOn(entry.expect.flag, { userId: "subject-1" });
+      expect(batches).toHaveLength(0);
+      await client.flush();
+      await client.flush();
+      expect(batches).toHaveLength(2);
+      expect(batches[1]).toEqual(batches[0]);
+      expect(batches[0]?.events[0]).toMatchObject({
+        flagKey: entry.expect.flag,
+        userId: "subject-1",
+      });
+      expect(errors).toHaveBeenCalledOnce();
+      await client.flush();
+      expect(batches).toHaveLength(2);
+    } finally {
+      client.close();
+    }
+  });
+
   it.each(CORPUS.snapshot.map((entry) => [entry.name, entry] as const))(
     "%s",
     async (_name, entry) => {
@@ -242,6 +383,36 @@ describe("FeatureFlags", () => {
       vi.useRealTimers();
     }
   });
+
+  it.each([401, 403])(
+    "discards a cached configuration after key rejection (%s)",
+    async (status) => {
+      vi.useFakeTimers();
+      let client: FeatureFlags | undefined;
+      try {
+        let calls = 0;
+        const fetchImpl = (async () => {
+          calls++;
+          return calls === 1
+            ? new Response(JSON.stringify(config), { status: 200 })
+            : new Response(null, { status });
+        }) as typeof globalThis.fetch;
+        client = new FeatureFlags({
+          sdkKey: "ff_test.abc",
+          fetch: fetchImpl,
+          refreshIntervalMs: 1000,
+        });
+        await client.initialize();
+        expect(client.config).not.toBeNull();
+        await vi.advanceTimersByTimeAsync(1500);
+        expect(client.config).toBeNull();
+        expect(client.getBoolean("checkout-v2", false)).toBe(false);
+      } finally {
+        client?.close();
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("stops refreshing after close", async () => {
     vi.useFakeTimers();

@@ -1,5 +1,5 @@
 {
-  "name": "@iwifunni/node",
+  "name": "@iwifunni-flag/core",
   "version": "0.1.0",
   "private": true,
   "description": "Iwifunni Node.js SDK: evaluate flags locally from one downloaded configuration snapshot.",
@@ -14,6 +14,9 @@
     "#errors": "./src/errors.ts"
   },
   "scripts": {
+    "build": "node scripts/package.mjs",
+    "package": "pnpm run build && cd dist && npm pack",
+    "test:package": "pnpm run build && node scripts/smoke.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint src",
     "format": "biome format --write src",
@@ -24,6 +27,7 @@
     "@iwifunni/engine": "workspace:*"
   },
   "devDependencies": {
+    "esbuild": "0.25.12",
     "@biomejs/biome": "^2.5.14",
     "@types/node": "^20",
     "typescript": "^5",
