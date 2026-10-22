@@ -5,7 +5,7 @@ import type {
   EvaluationSegment,
   EvaluationTarget,
 } from "@iwifunni/engine";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import { db } from "../../db/client.js";
 import {
@@ -64,12 +64,19 @@ export class EvaluationRepository {
   async findTarget(
     organizationId: string,
     lookup: EvaluationLookup,
+    projectIds?: string[] | null,
   ): Promise<EvaluationTargetData | null> {
     const conditions = [
       eq(project.organizationId, organizationId),
+      isNull(project.archivedAt),
       eq(flag.key, lookup.flagKey),
       eq(environment.key, lookup.environmentKey),
     ];
+
+    if (projectIds) {
+      if (projectIds.length === 0) return null;
+      conditions.push(inArray(project.id, projectIds));
+    }
 
     if (lookup.projectKey) {
       conditions.push(eq(project.key, lookup.projectKey));

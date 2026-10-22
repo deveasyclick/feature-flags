@@ -22,6 +22,7 @@ export class EvaluationController {
         {
           organizationId: context.workspace.id,
           userId: context.user.id,
+          workspaceRole: context.workspace.role,
         },
         parsed.data,
       ),

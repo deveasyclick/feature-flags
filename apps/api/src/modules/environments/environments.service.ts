@@ -375,8 +375,7 @@ export class EnvironmentsService {
     const connection: EnvironmentConnectionUrls = {
       baseUrl: origin,
       evalUrl: `${origin}/v1/evaluate`,
-      // Streaming is not implemented; the contract keeps this null until it is.
-      streamUrl: null,
+      streamUrl: `${origin}/v1/sdk/stream`,
       maskedKey: prefix,
     };
 

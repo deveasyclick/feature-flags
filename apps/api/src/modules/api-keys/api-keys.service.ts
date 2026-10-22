@@ -18,6 +18,7 @@ import {
   API_KEY_SUFFIX_LENGTH,
   MANAGEMENT_API_KEY_SCOPES,
   SDK_API_KEY_SCOPES,
+  SDK_ALLOWED_SCOPES,
 } from "@iwifunni/contracts";
 
 import { writeAuditLog } from "../../db/audit.js";
@@ -41,11 +42,10 @@ import {
 const MILLISECONDS_PER_DAY = 86_400_000;
 const MAX_PREFIX_ATTEMPTS = 5;
 
-/** True when the list is exactly the read-only scope an SDK key may carry. */
 function isSdkScopeList(scopes: ApiKeyScope[]): boolean {
   return (
-    scopes.length === SDK_API_KEY_SCOPES.length &&
-    SDK_API_KEY_SCOPES.every((scope) => scopes.includes(scope))
+    scopes.includes("flags:read") &&
+    scopes.every((scope) => SDK_ALLOWED_SCOPES.includes(scope))
   );
 }
 
@@ -88,6 +88,7 @@ export class ApiKeysService {
       : null;
 
     const rows = await this.repository.list(project.id, {
+      search: query.search,
       environmentId: environment?.id ?? null,
       includeRevoked: query.includeRevoked ?? false,
       limit: query.limit,
@@ -191,7 +192,7 @@ export class ApiKeysService {
 
       if (!isSdkScopeList(scopes)) {
         throw ApiError.badRequest(
-          `An SDK key may only carry the ${SDK_API_KEY_SCOPES.join(", ")} scope.`,
+          `An SDK key requires flags:read and may optionally carry events:write.`,
         );
       }
     }
@@ -334,9 +335,7 @@ export class ApiKeysService {
     const row = await this.requireKey(project.id, keyId);
 
     if (row.revokedAt) {
-      throw ApiError.conflict(
-        "That key is revoked. Create a new one instead.",
-      );
+      throw ApiError.conflict("That key is revoked. Create a new one instead.");
     }
 
     const secret = this.secretFor(row.prefix);

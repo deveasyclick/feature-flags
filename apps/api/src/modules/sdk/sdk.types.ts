@@ -5,6 +5,20 @@
  * handful of set queries; the mapper groups them onto their flag afterwards.
  */
 
+import type { MiddlewareHandler } from "hono";
+import type { ApiKeyEnv } from "../../middleware/api-key.js";
+import type { SdkController } from "./sdk.controller.js";
+
+export const SDK_STREAM_INTERVAL_MS = 15_000;
+export const SDK_STREAM_MAX_AGE_MS = 300_000;
+export const SDK_STREAM_MAX_CONNECTIONS = 100;
+export const SDK_STREAM_MAX_PER_KEY = 3;
+
+export interface SdkRoutesDeps {
+  controller: SdkController;
+  apiKeyMiddleware: MiddlewareHandler<ApiKeyEnv>;
+}
+
 export interface SdkMeta {
   projectKey: string;
   projectName: string;
@@ -14,6 +28,7 @@ export interface SdkMeta {
 
 /** A flag's identity joined to its configuration in the requested environment. */
 export interface SdkFlagSourceRow {
+  version: number;
   id: string;
   key: string;
   type: string;

@@ -34,6 +34,7 @@ export interface NewApiKeyRecord {
 }
 
 export interface ApiKeyListFilter {
+  search?: string;
   /**
    * Narrows the list to one environment, keeping the project-wide keys that
    * work in it. `null` lists every key of the project.

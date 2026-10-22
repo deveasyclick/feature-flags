@@ -46,7 +46,10 @@ export function toVariation(row: SdkVariationRow): SdkVariation {
   return { key: row.key, value: row.value };
 }
 
-export function toRule(row: SdkRuleRow, conditions: SdkConditionRow[]): SdkRule {
+export function toRule(
+  row: SdkRuleRow,
+  conditions: SdkConditionRow[],
+): SdkRule {
   return {
     id: row.id,
     priority: row.priority,
@@ -70,6 +73,7 @@ export function toFlag(
 ): SdkFlag {
   return {
     key: source.key,
+    version: source.version,
     type: source.type as FlagType,
     status: source.status as FlagStatus,
     enabled: source.enabled,

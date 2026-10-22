@@ -1,12 +1,14 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db } from "../../db/client.js";
+import type { Transaction } from "../../shared/types/db.js";
 import {
   environment,
   flag,
   flagEnvironmentConfig,
   flagIndividualTarget,
   flagVariation,
+  flagVersion,
   project,
   segment,
   segmentCondition,
@@ -29,11 +31,18 @@ function isEmpty(ids: readonly string[]): boolean {
 }
 
 export class SdkRepository {
+  withSnapshot<T>(read: (tx: Transaction) => Promise<T>): Promise<T> {
+    return db.transaction(read, {
+      isolationLevel: "repeatable read",
+      accessMode: "read only",
+    });
+  }
   async findMeta(
     projectId: string,
     environmentId: string,
+    tx: Transaction,
   ): Promise<SdkMeta | null> {
-    const rows = await db
+    const rows = await tx
       .select({
         projectKey: project.key,
         projectName: project.name,
@@ -42,7 +51,13 @@ export class SdkRepository {
       })
       .from(project)
       .innerJoin(environment, eq(environment.projectId, project.id))
-      .where(and(eq(project.id, projectId), eq(environment.id, environmentId)))
+      .where(
+        and(
+          eq(project.id, projectId),
+          eq(environment.id, environmentId),
+          isNull(project.archivedAt),
+        ),
+      )
       .limit(1);
 
     return rows[0] ?? null;
@@ -58,10 +73,13 @@ export class SdkRepository {
   async listFlagSources(
     projectId: string,
     environmentId: string,
+    tx: Transaction,
+    clientOnly = false,
   ): Promise<SdkFlagSourceRow[]> {
-    return db
+    return tx
       .select({
         id: flag.id,
+        version: sql<number>`(select coalesce(max(${flagVersion.version}), 1) from ${flagVersion} where ${flagVersion.flagId} = ${flag.id} and ${flagVersion.environmentId} = ${environmentId})`,
         key: flag.key,
         type: flag.type,
         status: flag.status,
@@ -79,14 +97,22 @@ export class SdkRepository {
           eq(flagEnvironmentConfig.environmentId, environmentId),
         ),
       )
-      .where(eq(flag.projectId, projectId))
+      .where(
+        and(
+          eq(flag.projectId, projectId),
+          clientOnly ? eq(flag.clientVisible, true) : undefined,
+        ),
+      )
       .orderBy(asc(flag.key));
   }
 
-  async listVariations(flagIds: readonly string[]): Promise<SdkVariationRow[]> {
+  async listVariations(
+    flagIds: readonly string[],
+    tx: Transaction,
+  ): Promise<SdkVariationRow[]> {
     if (isEmpty(flagIds)) return [];
 
-    return db
+    return tx
       .select({
         flagId: flagVariation.flagId,
         key: flagVariation.key,
@@ -100,10 +126,11 @@ export class SdkRepository {
   async listRules(
     flagIds: readonly string[],
     environmentId: string,
+    tx: Transaction,
   ): Promise<SdkRuleRow[]> {
     if (isEmpty(flagIds)) return [];
 
-    return db
+    return tx
       .select({
         id: targetingRule.id,
         flagId: targetingRule.flagId,
@@ -129,10 +156,11 @@ export class SdkRepository {
 
   async listRuleConditions(
     ruleIds: readonly string[],
+    tx: Transaction,
   ): Promise<SdkConditionRow[]> {
     if (isEmpty(ruleIds)) return [];
 
-    return db
+    return tx
       .select({
         parentId: targetingCondition.ruleId,
         attribute: targetingCondition.attribute,
@@ -152,10 +180,11 @@ export class SdkRepository {
   async listTargets(
     flagIds: readonly string[],
     environmentId: string,
+    tx: Transaction,
   ): Promise<SdkTargetRow[]> {
     if (isEmpty(flagIds)) return [];
 
-    return db
+    return tx
       .select({
         flagId: flagIndividualTarget.flagId,
         userId: flagIndividualTarget.userId,
@@ -174,8 +203,11 @@ export class SdkRepository {
       );
   }
 
-  async listSegments(projectId: string): Promise<SdkSegmentSourceRow[]> {
-    return db
+  async listSegments(
+    projectId: string,
+    tx: Transaction,
+  ): Promise<SdkSegmentSourceRow[]> {
+    return tx
       .select({ id: segment.id, key: segment.key })
       .from(segment)
       .where(eq(segment.projectId, projectId))
@@ -184,10 +216,11 @@ export class SdkRepository {
 
   async listSegmentConditions(
     segmentIds: readonly string[],
+    tx: Transaction,
   ): Promise<SdkConditionRow[]> {
     if (isEmpty(segmentIds)) return [];
 
-    return db
+    return tx
       .select({
         parentId: segmentCondition.segmentId,
         attribute: segmentCondition.attribute,

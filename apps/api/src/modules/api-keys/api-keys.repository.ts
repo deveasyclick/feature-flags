@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, isNull, lt, or } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lt, or, ilike } from "drizzle-orm";
 
 import { db } from "../../db/client.js";
 import { apiKey, environment, project } from "../../db/schema/index.js";
@@ -34,6 +34,11 @@ export class ApiKeysRepository {
     filter: ApiKeyListFilter,
   ): Promise<ApiKeyRow[]> {
     const conditions = [eq(apiKey.projectId, projectId)];
+    if (filter.search) {
+      const term = `%${filter.search.replace(/[\\%_]/g, "\\$&")}%`;
+      const match = or(ilike(apiKey.name, term), ilike(apiKey.prefix, term));
+      if (match) conditions.push(match);
+    }
 
     if (filter.environmentId) {
       // A key issued without an environment authenticates in every one, so it
@@ -85,7 +90,7 @@ export class ApiKeysRepository {
       .from(apiKey)
       .innerJoin(project, eq(project.id, apiKey.projectId))
       .leftJoin(environment, eq(environment.id, apiKey.environmentId))
-      .where(eq(apiKey.prefix, prefix))
+      .where(and(eq(apiKey.prefix, prefix), isNull(project.archivedAt)))
       .limit(1);
 
     return rows[0] ?? null;
@@ -155,11 +160,7 @@ export class ApiKeysRepository {
   }
 
   /** An identity edit: the secret, its hash and the prefix are not touched. */
-  async updateName(
-    tx: Transaction,
-    id: string,
-    name: string,
-  ): Promise<void> {
+  async updateName(tx: Transaction, id: string, name: string): Promise<void> {
     await tx.update(apiKey).set({ name }).where(eq(apiKey.id, id));
   }
 

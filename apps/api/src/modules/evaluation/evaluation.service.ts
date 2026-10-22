@@ -2,10 +2,12 @@ import type { EvaluateRequest, EvaluationResult } from "@iwifunni/contracts";
 import { evaluate as evaluateFlag, OFF_VARIATION } from "@iwifunni/engine";
 
 import type { EvaluationRepository } from "./evaluation.repository.js";
+import type { ProjectAccessService } from "../project-access/index.js";
 
 export interface EvaluationActorContext {
   organizationId: string;
   userId: string;
+  workspaceRole: string;
 }
 
 /**
@@ -13,17 +15,25 @@ export interface EvaluationActorContext {
  * decides; nothing is written and no cache sits in front of it.
  */
 export class EvaluationService {
-  constructor(private readonly repository: EvaluationRepository) {}
+  constructor(
+    private readonly repository: EvaluationRepository,
+    private readonly projectAccess: ProjectAccessService,
+  ) {}
 
   async evaluate(
     context: EvaluationActorContext,
     input: EvaluateRequest,
   ): Promise<EvaluationResult> {
-    const target = await this.repository.findTarget(context.organizationId, {
-      projectKey: input.projectKey,
-      flagKey: input.flag,
-      environmentKey: input.environment,
-    });
+    const projectIds = await this.projectAccess.visibleProjectIds(context);
+    const target = await this.repository.findTarget(
+      context.organizationId,
+      {
+        projectKey: input.projectKey,
+        flagKey: input.flag,
+        environmentKey: input.environment,
+      },
+      projectIds,
+    );
 
     if (!target) {
       return {
