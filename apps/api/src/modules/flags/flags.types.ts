@@ -2,6 +2,21 @@ import type { FlagStatus, FlagType } from "@iwifunni/contracts";
 
 import type { EnvironmentRef } from "../../shared/types/environment.js";
 import type { ProjectRef } from "../project-access/index.js";
+import type { scheduledFlagChange } from "../../db/schema/index.js";
+import type { flagRollbackPolicy } from "../../db/schema/index.js";
+export type FlagRollbackRow = typeof flagRollbackPolicy.$inferSelect;
+export type NewFlagRollback = typeof flagRollbackPolicy.$inferInsert;
+import type { MiddlewareHandler } from "hono";
+import type { SessionEnv } from "../auth/index.js";
+import type { FlagsController } from "./flags.controller.js";
+
+export interface FlagsRoutesDeps {
+  controller: FlagsController;
+  sessionMiddleware: MiddlewareHandler<SessionEnv>;
+}
+
+export type ScheduledFlagChangeRow = typeof scheduledFlagChange.$inferSelect;
+export type NewScheduledFlagChange = typeof scheduledFlagChange.$inferInsert;
 
 /** The environment a flag is configured in, shared with the environments module. */
 export type { EnvironmentRef };
@@ -70,6 +85,7 @@ export interface FlagListFilter {
 }
 
 export interface WorkspaceFlagFilter {
+  projectIds?: string[] | null;
   search?: string;
   status?: FlagStatus;
   projectKey?: string;

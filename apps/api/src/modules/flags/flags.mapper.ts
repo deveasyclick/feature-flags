@@ -1,5 +1,9 @@
 import {
   flagVariationValueSchema,
+  scheduledFlagChangeSchema,
+  flagRollbackPolicySchema,
+  type FlagRollbackPolicy,
+  type ScheduledFlagChange,
   type FlagDetail,
   type FlagEnvironmentConfig,
   type FlagIndividualTarget,
@@ -26,6 +30,28 @@ import type {
   RuleWithConditions,
   VariationRow,
 } from "./flags.types.js";
+import type { ScheduledFlagChangeRow } from "./flags.types.js";
+import type { FlagRollbackRow } from "./flags.types.js";
+
+export function toFlagRollback(row: FlagRollbackRow): FlagRollbackPolicy {
+  return flagRollbackPolicySchema.parse({
+    ...row,
+    armedAt: row.armedAt.toISOString(),
+    expiresAt: row.expiresAt.toISOString(),
+    finishedAt: row.finishedAt?.toISOString() ?? null,
+  });
+}
+
+export function toScheduledFlagChange(
+  row: ScheduledFlagChangeRow,
+): ScheduledFlagChange {
+  return scheduledFlagChangeSchema.parse({
+    ...row,
+    executeAt: row.executeAt.toISOString(),
+    createdAt: row.createdAt.toISOString(),
+    finishedAt: row.finishedAt?.toISOString() ?? null,
+  });
+}
 
 function toVariationValue(value: unknown): FlagVariationValue {
   const parsed = flagVariationValueSchema.safeParse(value);

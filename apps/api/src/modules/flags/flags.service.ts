@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 
 import {
   defaultVariations,
+  flagReleaseStateSchema,
+  proposeFlagChangeSchema,
+  type ScheduleFlagChangeInput,
+  type ScheduledFlagChange,
+  type ArmFlagRollbackInput,
+  type FlagRollbackPolicy,
   variationValueMatchesType,
   type AuditAction,
   type CreateFlagInput,
@@ -16,6 +23,8 @@ import {
   type FlagType,
   type FlagVariation,
   type FlagVersion,
+  type FlagVersionDetail,
+  type FlagReleaseState,
   type PublishTargetingInput,
   type ReplaceIndividualTargetsInput,
   type ReplaceTargetingRulesInput,
@@ -42,6 +51,8 @@ import {
   toFlagEnvironmentConfig,
   toFlagSummary,
   toFlagVersion,
+  toScheduledFlagChange,
+  toFlagRollback,
   toIndividualTargets,
   toTargetingRules,
   toVariations,
@@ -123,6 +134,7 @@ export class FlagsService {
     const rows = await this.repository.listForWorkspace(
       context.organizationId,
       {
+        projectIds: await this.projectAccess.visibleProjectIds(context),
         search: query.search,
         status: query.status,
         projectKey: query.projectKey,
@@ -268,6 +280,7 @@ export class FlagsService {
             key: input.key,
             type: input.type,
             tags: input.tags,
+            state: await this.captureRelease(tx, flagId, environment.id),
           },
         });
       }
@@ -410,6 +423,16 @@ export class FlagsService {
       throw ApiError.notFound("Variation not found.");
     }
 
+    const existing = variations.find(
+      (variation) => variation.key === variationKey,
+    );
+    if (
+      input.value !== undefined &&
+      !isDeepStrictEqual(input.value, existing?.value)
+    ) {
+      await this.assertSharedChangeAllowed(project.id);
+    }
+
     if (
       input.value !== undefined &&
       !variationValueMatchesType(row.type as FlagType, input.value)
@@ -540,6 +563,8 @@ export class FlagsService {
     });
     const row = await this.requireFlag(project.id, flagKey);
 
+    await this.assertSharedChangeAllowed(project.id);
+
     if (row.status === "archived") {
       throw ApiError.conflict("That flag is already archived.");
     }
@@ -579,6 +604,8 @@ export class FlagsService {
       minimumRole: "engineer",
     });
     const row = await this.requireFlag(project.id, flagKey);
+
+    await this.assertSharedChangeAllowed(project.id);
 
     if (row.status !== "archived") {
       throw ApiError.conflict("That flag is not archived.");
@@ -908,6 +935,688 @@ export class FlagsService {
     };
   }
 
+  async clientVisibility(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+  ): Promise<{ clientVisible: boolean }> {
+    const { project } = await this.projectAccess.require({
+      ...context,
+      projectKey,
+      minimumRole: "viewer",
+    });
+    const flag = await this.requireFlag(project.id, flagKey);
+    return { clientVisible: await this.repository.clientVisibility(flag.id) };
+  }
+
+  async setClientVisibility(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    clientVisible: boolean,
+  ): Promise<{ clientVisible: boolean }> {
+    const { project } = await this.projectAccess.require({
+      ...context,
+      projectKey,
+      minimumRole: "admin",
+    });
+    const flag = await this.requireFlag(project.id, flagKey);
+    this.assertActive(flag);
+    await db.transaction(async (tx) => {
+      await this.repository.setClientVisibility(tx, flag.id, clientVisible);
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: project.id,
+        actor: context.userId,
+        actorName: context.userName,
+        action: "flag.updated",
+        target: flag.id,
+        changes: { clientVisible },
+      });
+    });
+    return { clientVisible };
+  }
+
+  async scheduleChange(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    input: ScheduleFlagChangeInput,
+  ): Promise<ScheduledFlagChange> {
+    const scope = await this.resolveApprovedChange(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      input.payload,
+    );
+    this.assertPublishable(scope.environment);
+    const executeAt = new Date(input.executeAt);
+    const delay = executeAt.getTime() - Date.now();
+    if (delay < 60_000 || delay > 365 * 24 * 60 * 60 * 1000)
+      throw ApiError.badRequest(
+        "Schedule between one minute and one year from now.",
+      );
+    return db.transaction(async (tx) => {
+      await this.repository.lockConfig(tx, scope.flag.id, scope.environment.id);
+      if (
+        (await this.repository.nextVersion(
+          tx,
+          scope.flag.id,
+          scope.environment.id,
+        )) !==
+        input.baseVersion + 1
+      )
+        throw ApiError.conflict(
+          "The flag changed. Refresh and schedule again.",
+        );
+      const row = await this.repository.insertSchedule(tx, {
+        id: randomUUID(),
+        organizationId: context.organizationId,
+        projectId: scope.project.id,
+        flagId: scope.flag.id,
+        environmentId: scope.environment.id,
+        executeAt,
+        baseVersion: input.baseVersion,
+        payload: input.payload,
+        createdBy: context.userId,
+      });
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: scope.project.id,
+        environmentId: scope.environment.id,
+        actor: context.userId,
+        actorName: context.userName,
+        action: "flag.change_scheduled",
+        target: scope.flag.id,
+        changes: { scheduleId: row.id, executeAt: input.executeAt },
+      });
+      return toScheduledFlagChange(row);
+    });
+  }
+
+  async listSchedules(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    limit: number,
+    cursor: string | undefined,
+  ): Promise<Page<ScheduledFlagChange>> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "viewer",
+    );
+    const rows = await this.repository.listSchedules(
+      scope.flag.id,
+      scope.environment.id,
+      limit,
+      decodeCursor(cursor),
+    );
+    const page = toPage(rows, limit, (row) => row.id);
+    return {
+      data: page.data.map(toScheduledFlagChange),
+      nextCursor: page.nextCursor,
+    };
+  }
+
+  async cancelSchedule(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    id: string,
+  ): Promise<void> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "engineer",
+    );
+    await db.transaction(async (tx) => {
+      if (
+        !(await this.repository.cancelSchedule(
+          tx,
+          scope.flag.id,
+          scope.environment.id,
+          id,
+        ))
+      )
+        throw ApiError.notFound("Pending schedule not found.");
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: scope.project.id,
+        environmentId: scope.environment.id,
+        actor: context.userId,
+        actorName: context.userName,
+        action: "flag.schedule_cancelled",
+        target: scope.flag.id,
+        changes: { scheduleId: id },
+      });
+    });
+  }
+
+  async runDueSchedules(now = new Date()): Promise<number> {
+    let processed = 0;
+    for (let index = 0; index < 50; index++) {
+      const found = await db.transaction(async (tx) => {
+        const row = await this.repository.claimDueSchedule(tx, now);
+        if (!row) return false;
+        let failureReason: string | null = null;
+        try {
+          await tx.transaction(async (applyTx) => {
+            const actor = await this.repository.scheduleActor(
+              row.organizationId,
+              row.createdBy,
+            );
+            if (!actor)
+              throw ApiError.forbidden(
+                "The person who scheduled this change no longer belongs to the workspace.",
+              );
+            const keys = await this.repository.scheduleKeys(applyTx, row);
+            if (!keys)
+              throw ApiError.notFound("Scheduled resources no longer exist.");
+            const context = {
+              ...actor,
+              organizationId: row.organizationId,
+              userId: row.createdBy,
+            };
+            const parsed = proposeFlagChangeSchema.safeParse(row.payload);
+            if (!parsed.success)
+              throw ApiError.conflict(
+                "The scheduled payload is no longer valid.",
+              );
+            const scope = await this.resolveApprovedChange(
+              context,
+              keys.projectKey,
+              keys.flagKey,
+              keys.environmentKey,
+              parsed.data,
+            );
+            this.assertPublishable(scope.environment);
+            await this.repository.lockConfig(
+              applyTx,
+              row.flagId,
+              row.environmentId,
+            );
+            if (
+              (await this.repository.nextVersion(
+                applyTx,
+                row.flagId,
+                row.environmentId,
+              )) !==
+              row.baseVersion + 1
+            )
+              throw ApiError.conflict(
+                "A newer version was published. Schedule cancelled to preserve that change.",
+              );
+            await this.publishApprovedChange(
+              applyTx,
+              context,
+              keys.projectKey,
+              keys.flagKey,
+              keys.environmentKey,
+              parsed.data,
+            );
+          });
+        } catch (error) {
+          failureReason =
+            error instanceof ApiError
+              ? error.message
+              : "The scheduled change could not be applied.";
+          if (!(error instanceof ApiError))
+            console.error("[scheduler] change failed", error);
+        }
+        await this.repository.finishSchedule(tx, row.id, failureReason);
+        if (failureReason)
+          await writeAuditLog(tx, {
+            organizationId: row.organizationId,
+            projectId: row.projectId,
+            environmentId: row.environmentId,
+            actor: row.createdBy,
+            action: "flag.schedule_failed",
+            target: row.flagId,
+            changes: { scheduleId: row.id, reason: failureReason },
+          });
+        return true;
+      });
+      if (!found) break;
+      processed++;
+    }
+    return processed;
+  }
+
+  async armRollback(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    input: ArmFlagRollbackInput,
+  ): Promise<FlagRollbackPolicy> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "engineer",
+    );
+    this.assertActive(scope.flag);
+    this.assertPublishable(scope.environment);
+    if (input.targetVersion >= input.currentVersion)
+      throw ApiError.badRequest("Choose an earlier version to restore.");
+    const target = await this.getVersion(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      input.targetVersion,
+    );
+    if (!target.state)
+      throw ApiError.conflict("The target version has no complete snapshot.");
+    await this.resolveApprovedChange(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      target.state,
+    );
+    const expiresAt = input.expiresAt
+      ? new Date(input.expiresAt)
+      : new Date(Date.now() + 3_600_000);
+    if (
+      expiresAt.getTime() - Date.now() < 60_000 ||
+      expiresAt.getTime() - Date.now() > 86_400_000
+    )
+      throw ApiError.badRequest(
+        "Monitoring must expire between one minute and 24 hours from now.",
+      );
+    return db.transaction(async (tx) => {
+      await this.repository.lockConfig(tx, scope.flag.id, scope.environment.id);
+      if (
+        (await this.repository.nextVersion(
+          tx,
+          scope.flag.id,
+          scope.environment.id,
+        )) !==
+        input.currentVersion + 1
+      )
+        throw ApiError.conflict("A newer version was published.");
+      if (
+        await this.repository.hasArmedRollback(
+          tx,
+          scope.flag.id,
+          scope.environment.id,
+        )
+      )
+        throw ApiError.conflict("Cancel the existing rollback policy first.");
+      const row = await this.repository.insertRollback(tx, {
+        ...input,
+        id: randomUUID(),
+        organizationId: context.organizationId,
+        projectId: scope.project.id,
+        flagId: scope.flag.id,
+        environmentId: scope.environment.id,
+        createdBy: context.userId,
+        expiresAt,
+      });
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: scope.project.id,
+        environmentId: scope.environment.id,
+        actor: context.userId,
+        action: "flag.updated",
+        target: scope.flag.id,
+        changes: { rollbackPolicyArmed: row.id },
+      });
+      return toFlagRollback(row);
+    });
+  }
+
+  async listRollbacks(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    limit: number,
+    cursor: string | undefined,
+  ): Promise<Page<FlagRollbackPolicy>> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "viewer",
+    );
+    const rows = await this.repository.listRollbacks(
+      scope.flag.id,
+      scope.environment.id,
+      limit,
+      decodeCursor(cursor),
+    );
+    const page = toPage(rows, limit, (row) => row.id);
+    return { data: page.data.map(toFlagRollback), nextCursor: page.nextCursor };
+  }
+
+  async cancelRollback(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    id: string,
+  ): Promise<void> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "engineer",
+    );
+    await db.transaction(async (tx) => {
+      if (
+        !(await this.repository.cancelRollback(
+          tx,
+          scope.flag.id,
+          scope.environment.id,
+          id,
+        ))
+      )
+        throw ApiError.notFound("Armed rollback policy not found.");
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: scope.project.id,
+        environmentId: scope.environment.id,
+        actor: context.userId,
+        action: "flag.updated",
+        target: scope.flag.id,
+        changes: { rollbackPolicyCancelled: id },
+      });
+    });
+  }
+
+  async runRollbackPolicies(now = new Date()): Promise<number> {
+    let processed = 0;
+    for (let index = 0; index < 50; index++) {
+      const found = await db.transaction(async (tx) => {
+        const row = await this.repository.claimRollback(tx, now);
+        if (!row) return false;
+        if (row.expiresAt <= now) {
+          await this.repository.finishRollback(
+            tx,
+            row.id,
+            "expired",
+            "Monitoring window expired.",
+          );
+          return true;
+        }
+        try {
+          await tx.transaction(async (applyTx) => {
+            const actor = await this.repository.scheduleActor(
+              row.organizationId,
+              row.createdBy,
+            );
+            if (!actor)
+              throw ApiError.forbidden(
+                "The policy creator no longer belongs to the workspace.",
+              );
+            const keys = await this.repository.scheduleKeys(applyTx, row);
+            if (!keys)
+              throw ApiError.notFound(
+                "The monitored resources no longer exist.",
+              );
+            const context = {
+              ...actor,
+              organizationId: row.organizationId,
+              userId: row.createdBy,
+            };
+            const scope = await this.environmentScope(
+              context,
+              keys.projectKey,
+              keys.flagKey,
+              keys.environmentKey,
+              "engineer",
+            );
+            this.assertActive(scope.flag);
+            this.assertPublishable(scope.environment);
+            await this.repository.lockConfig(
+              applyTx,
+              row.flagId,
+              row.environmentId,
+            );
+            if (
+              (await this.repository.nextVersion(
+                applyTx,
+                row.flagId,
+                row.environmentId,
+              )) !==
+              row.currentVersion + 1
+            )
+              throw ApiError.conflict(
+                "The flag changed after monitoring was armed.",
+              );
+            const counts = await this.repository.rollbackObservations(
+              applyTx,
+              row,
+              keys.flagKey,
+              now,
+            );
+            if (
+              counts.total < row.minimumSamples ||
+              counts.errors * 100 < counts.total * row.errorPercentage
+            )
+              return;
+            const target = await this.getVersion(
+              context,
+              keys.projectKey,
+              keys.flagKey,
+              keys.environmentKey,
+              row.targetVersion,
+            );
+            const state = target.state;
+            if (!state)
+              throw ApiError.conflict("The target version is incomplete.");
+            await this.resolveApprovedChange(
+              context,
+              keys.projectKey,
+              keys.flagKey,
+              keys.environmentKey,
+              state,
+            );
+            await this.writeEnvironmentChange(
+              applyTx,
+              context,
+              scope,
+              "flag.automatically_rolled_back",
+              {
+                rollbackPolicyId: row.id,
+                restoredVersion: row.targetVersion,
+                samples: counts.total,
+                errors: counts.errors,
+              },
+              async () => {
+                await this.repository.updateConfig(
+                  applyTx,
+                  scope.config.id,
+                  state.config,
+                );
+                await this.repository.replaceRules(
+                  applyTx,
+                  row.flagId,
+                  row.environmentId,
+                  state.rules.rules,
+                );
+                await this.repository.replaceTargets(
+                  applyTx,
+                  row.flagId,
+                  row.environmentId,
+                  state.targets.targets,
+                );
+              },
+              `Automatically restored version ${row.targetVersion}`,
+              {
+                environment: keys.environmentKey,
+                serve: state.config.defaultVariation,
+                restoredVersion: row.targetVersion,
+              },
+            );
+            await this.repository.finishRollback(
+              applyTx,
+              row.id,
+              "triggered",
+              `${counts.errors} of ${counts.total} reported application outcomes failed.`,
+            );
+          });
+        } catch (error) {
+          await this.repository.finishRollback(
+            tx,
+            row.id,
+            "blocked",
+            error instanceof ApiError
+              ? error.message
+              : "Rollback could not be safely applied.",
+          );
+        }
+        return true;
+      });
+      if (!found) break;
+      processed++;
+    }
+    return processed;
+  }
+
+  async getVersion(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    version: number,
+  ): Promise<FlagVersionDetail> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "viewer",
+    );
+    const row = await this.repository.findVersion(
+      scope.flag.id,
+      scope.environment.id,
+      version,
+    );
+    if (!row) throw ApiError.notFound("Version not found.");
+    const snapshot = row.snapshot;
+    const parsed = flagReleaseStateSchema.safeParse(
+      snapshot && typeof snapshot === "object" && "state" in snapshot
+        ? snapshot.state
+        : null,
+    );
+    return {
+      ...toFlagVersion(row, scope.environment.key),
+      state: parsed.success ? parsed.data : null,
+    };
+  }
+
+  async restoreVersion(
+    context: FlagsActorContext,
+    projectKey: string,
+    flagKey: string,
+    environmentKey: string,
+    version: number,
+  ): Promise<void> {
+    const scope = await this.environmentScope(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      "engineer",
+    );
+    this.assertActive(scope.flag);
+    this.assertPublishable(scope.environment);
+    const release = await this.getVersion(
+      context,
+      projectKey,
+      flagKey,
+      environmentKey,
+      version,
+    );
+    const state = release.state;
+    if (!state)
+      throw ApiError.conflict(
+        "This version has no complete snapshot and cannot be restored.",
+      );
+    await db.transaction(async (tx) => {
+      await this.resolveApprovedChange(
+        context,
+        projectKey,
+        flagKey,
+        environmentKey,
+        state,
+      );
+      await this.writeEnvironmentChange(
+        tx,
+        context,
+        scope,
+        "flag.updated",
+        { restoredVersion: version },
+        async () => {
+          await this.repository.updateConfig(tx, scope.config.id, state.config);
+          await this.repository.replaceRules(
+            tx,
+            scope.flag.id,
+            scope.environment.id,
+            state.rules.rules,
+          );
+          await this.repository.replaceTargets(
+            tx,
+            scope.flag.id,
+            scope.environment.id,
+            state.targets.targets,
+          );
+        },
+        `Restored version ${version}`,
+        {
+          environment: environmentKey,
+          serve: state.config.defaultVariation,
+          restoredVersion: version,
+        },
+      );
+    });
+  }
+
+  private async captureRelease(
+    tx: Transaction,
+    flagId: string,
+    environmentId: string,
+  ): Promise<FlagReleaseState> {
+    const config = await this.repository.findConfigInTx(
+      tx,
+      flagId,
+      environmentId,
+    );
+    if (!config) throw ApiError.notFound("Flag configuration not found.");
+    const rules = await this.repository.listRules(flagId, environmentId, tx);
+    const targets = await this.repository.listTargets(
+      flagId,
+      environmentId,
+      tx,
+    );
+    return flagReleaseStateSchema.parse({
+      config: {
+        enabled: config.enabled,
+        offVariation: config.offVariationKey,
+        defaultVariation: config.defaultVariationKey,
+        rolloutPercentage: config.rolloutPercentage,
+        bucketBy: config.bucketBy,
+      },
+      rules: { rules: toTargetingRules(rules) },
+      targets: { targets: toIndividualTargets(targets) },
+    });
+  }
+
   /** `GET /v1/flags/:flagKey` requires a project key: keys collide across projects. */
   async resolve(
     context: FlagsActorContext,
@@ -1050,6 +1759,7 @@ export class FlagsService {
           environment: input.target.key,
           key: row.key,
           type: row.type,
+          state: await this.captureRelease(tx, row.id, input.target.id),
         },
       });
     }
@@ -1254,6 +1964,7 @@ export class FlagsService {
     description: string,
     snapshot: Record<string, unknown>,
   ): Promise<void> {
+    await this.repository.lockConfig(tx, scope.flag.id, scope.environment.id);
     await write();
 
     await writeAuditLog(tx, {
@@ -1278,7 +1989,14 @@ export class FlagsService {
       ),
       description,
       author: context.userId,
-      snapshot,
+      snapshot: {
+        ...snapshot,
+        state: await this.captureRelease(
+          tx,
+          scope.flag.id,
+          scope.environment.id,
+        ),
+      },
     });
   }
 
@@ -1287,6 +2005,15 @@ export class FlagsService {
    * change instead, and a second person approves it through the change-requests
    * module, which re-enters through `publishApprovedChange`.
    */
+  private async assertSharedChangeAllowed(projectId: string): Promise<void> {
+    const environments = await this.repository.listEnvironments(projectId);
+    if (environments.some((entry) => entry.isProtected && !entry.archivedAt)) {
+      throw ApiError.conflict(
+        "Shared variation values and flag lifecycle cannot change while an active environment is protected. Use a new variation and approve its selection instead.",
+      );
+    }
+  }
+
   private assertPublishable(environment: EnvironmentRef): void {
     if (environment.isProtected) {
       throw ApiError.approvalRequired(environment.key);

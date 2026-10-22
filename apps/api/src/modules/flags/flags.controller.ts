@@ -2,6 +2,11 @@ import {
   createFlagSchema,
   createFlagVariationSchema,
   flagListQuerySchema,
+  flagVersionNumberSchema,
+  clientFlagVisibilitySchema,
+  scheduleFlagChangeSchema,
+  scheduledFlagChangeIdSchema,
+  armFlagRollbackSchema,
   paginationQuerySchema,
   publishTargetingSchema,
   replaceIndividualTargetsSchema,
@@ -22,6 +27,162 @@ import type { FlagsActorContext } from "./flags.types.js";
 
 export class FlagsController {
   constructor(private readonly service: FlagsService) {}
+
+  async armRollback(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = armFlagRollbackSchema.safeParse(await this.body(c));
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.armRollback(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        this.param(c, "environmentKey"),
+        parsed.data,
+      ),
+      201,
+    );
+  }
+  async listRollbacks(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = paginationQuerySchema.safeParse(c.req.query());
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.listRollbacks(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        this.param(c, "environmentKey"),
+        parsed.data.limit,
+        parsed.data.cursor,
+      ),
+    );
+  }
+  async cancelRollback(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = scheduledFlagChangeIdSchema.safeParse(
+      c.req.param("policyId"),
+    );
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    await this.service.cancelRollback(
+      actor,
+      this.param(c, "projectKey"),
+      this.param(c, "flagKey"),
+      this.param(c, "environmentKey"),
+      parsed.data,
+    );
+    return c.body(null, 204);
+  }
+
+  async clientVisibility(c: Context<SessionEnv>): Promise<Response> {
+    return c.json(
+      await this.service.clientVisibility(
+        await this.actor(c),
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+      ),
+    );
+  }
+
+  async setClientVisibility(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = clientFlagVisibilitySchema.safeParse(await this.body(c));
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.setClientVisibility(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        parsed.data.clientVisible,
+      ),
+    );
+  }
+
+  async scheduleChange(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = scheduleFlagChangeSchema.safeParse(await this.body(c));
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.scheduleChange(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        this.param(c, "environmentKey"),
+        parsed.data,
+      ),
+      201,
+    );
+  }
+
+  async listSchedules(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = paginationQuerySchema.safeParse(c.req.query());
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.listSchedules(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        this.param(c, "environmentKey"),
+        parsed.data.limit,
+        parsed.data.cursor,
+      ),
+    );
+  }
+
+  async cancelSchedule(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = scheduledFlagChangeIdSchema.safeParse(
+      c.req.param("scheduleId"),
+    );
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    await this.service.cancelSchedule(
+      actor,
+      this.param(c, "projectKey"),
+      this.param(c, "flagKey"),
+      this.param(c, "environmentKey"),
+      parsed.data,
+    );
+    return c.body(null, 204);
+  }
+
+  async getVersion(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = flagVersionNumberSchema.safeParse(c.req.param("version"));
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.getVersion(
+        actor,
+        this.param(c, "projectKey"),
+        this.param(c, "flagKey"),
+        this.param(c, "environmentKey"),
+        parsed.data,
+      ),
+    );
+  }
+
+  async restoreVersion(c: Context<SessionEnv>): Promise<Response> {
+    const actor = await this.actor(c);
+    const parsed = flagVersionNumberSchema.safeParse(c.req.param("version"));
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    await this.service.restoreVersion(
+      actor,
+      this.param(c, "projectKey"),
+      this.param(c, "flagKey"),
+      this.param(c, "environmentKey"),
+      parsed.data,
+    );
+    return c.body(null, 204);
+  }
 
   async listWorkspace(c: Context<SessionEnv>): Promise<Response> {
     const actor = await this.actor(c);

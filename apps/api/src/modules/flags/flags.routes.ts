@@ -1,12 +1,7 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono } from "hono";
 
 import type { SessionEnv } from "../auth/auth.types.js";
-import type { FlagsController } from "./flags.controller.js";
-
-export interface FlagsRoutesDeps {
-  controller: FlagsController;
-  sessionMiddleware: MiddlewareHandler;
-}
+import type { FlagsRoutesDeps } from "./flags.types.js";
 
 /**
  * Mounted at `/`, because the module owns both the workspace-wide `/v1/flags`
@@ -33,6 +28,12 @@ export function createFlagsRoutes({
   const configPath = `${flagPath}/environments/:environmentKey`;
 
   routes.get(flagPath, (c) => controller.get(c));
+  routes.get(`${flagPath}/client-visibility`, (c) =>
+    controller.clientVisibility(c),
+  );
+  routes.patch(`${flagPath}/client-visibility`, (c) =>
+    controller.setClientVisibility(c),
+  );
   routes.patch(flagPath, (c) => controller.update(c));
   routes.delete(flagPath, (c) => controller.archive(c));
   routes.post(`${flagPath}/unarchive`, (c) => controller.unarchive(c));
@@ -61,6 +62,26 @@ export function createFlagsRoutes({
   routes.put(`${configPath}/targeting`, (c) => controller.publishTargeting(c));
 
   routes.get(`${configPath}/versions`, (c) => controller.listVersions(c));
+  routes.get(`${configPath}/schedules`, (c) => controller.listSchedules(c));
+  routes.get(`${configPath}/rollback-policies`, (c) =>
+    controller.listRollbacks(c),
+  );
+  routes.post(`${configPath}/rollback-policies`, (c) =>
+    controller.armRollback(c),
+  );
+  routes.delete(`${configPath}/rollback-policies/:policyId`, (c) =>
+    controller.cancelRollback(c),
+  );
+  routes.post(`${configPath}/schedules`, (c) => controller.scheduleChange(c));
+  routes.delete(`${configPath}/schedules/:scheduleId`, (c) =>
+    controller.cancelSchedule(c),
+  );
+  routes.get(`${configPath}/versions/:version`, (c) =>
+    controller.getVersion(c),
+  );
+  routes.post(`${configPath}/versions/:version/restore`, (c) =>
+    controller.restoreVersion(c),
+  );
 
   routes.get(`${flagPath}/dependencies`, (c) => controller.getDependencies(c));
 

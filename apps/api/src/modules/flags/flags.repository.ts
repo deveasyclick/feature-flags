@@ -6,8 +6,11 @@ import {
   eq,
   getTableColumns,
   gt,
+  gte,
   ilike,
   inArray,
+  lte,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
@@ -20,7 +23,7 @@ import type {
   UpdateFlagVariationInput,
 } from "@iwifunni/contracts";
 
-import { db } from "../../db/client.js";
+import { db, type Database } from "../../db/client.js";
 import {
   environment,
   flag,
@@ -32,8 +35,19 @@ import {
   project,
   targetingCondition,
   targetingRule,
+  scheduledFlagChange,
+  flagRollbackPolicy,
+  evaluationEvent,
+  member,
+  user,
 } from "../../db/schema/index.js";
 import type { Transaction } from "../../shared/types/db.js";
+import type {
+  NewScheduledFlagChange,
+  ScheduledFlagChangeRow,
+  FlagRollbackRow,
+  NewFlagRollback,
+} from "./flags.types.js";
 import type {
   DependencyRow,
   EnvironmentConfigCopyInput,
@@ -57,6 +71,301 @@ import type {
 import { WORKSPACE_FLAG_CURSOR_SEPARATOR } from "./flags.types.js";
 
 export class FlagsRepository {
+  async insertRollback(
+    tx: Transaction,
+    input: NewFlagRollback,
+  ): Promise<FlagRollbackRow> {
+    const [row] = await tx.insert(flagRollbackPolicy).values(input).returning();
+    if (!row) throw new Error("Rollback policy was not inserted.");
+    return row;
+  }
+  async hasArmedRollback(
+    tx: Transaction,
+    flagId: string,
+    environmentId: string,
+  ): Promise<boolean> {
+    const [row] = await tx
+      .select({ id: flagRollbackPolicy.id })
+      .from(flagRollbackPolicy)
+      .where(
+        and(
+          eq(flagRollbackPolicy.flagId, flagId),
+          eq(flagRollbackPolicy.environmentId, environmentId),
+          eq(flagRollbackPolicy.status, "armed"),
+        ),
+      )
+      .limit(1);
+    return !!row;
+  }
+  async listRollbacks(
+    flagId: string,
+    environmentId: string,
+    limit: number,
+    cursor: string | null,
+  ): Promise<FlagRollbackRow[]> {
+    return db
+      .select()
+      .from(flagRollbackPolicy)
+      .where(
+        and(
+          eq(flagRollbackPolicy.flagId, flagId),
+          eq(flagRollbackPolicy.environmentId, environmentId),
+          cursor ? gt(flagRollbackPolicy.id, cursor) : undefined,
+        ),
+      )
+      .orderBy(asc(flagRollbackPolicy.id))
+      .limit(limit + 1);
+  }
+  async cancelRollback(
+    tx: Transaction,
+    flagId: string,
+    environmentId: string,
+    id: string,
+  ): Promise<boolean> {
+    const rows = await tx
+      .update(flagRollbackPolicy)
+      .set({ status: "cancelled", finishedAt: new Date() })
+      .where(
+        and(
+          eq(flagRollbackPolicy.id, id),
+          eq(flagRollbackPolicy.flagId, flagId),
+          eq(flagRollbackPolicy.environmentId, environmentId),
+          eq(flagRollbackPolicy.status, "armed"),
+        ),
+      )
+      .returning({ id: flagRollbackPolicy.id });
+    return rows.length > 0;
+  }
+  async claimRollback(
+    tx: Transaction,
+    now: Date,
+  ): Promise<FlagRollbackRow | null> {
+    const [row] = await tx
+      .select()
+      .from(flagRollbackPolicy)
+      .where(
+        and(
+          eq(flagRollbackPolicy.status, "armed"),
+          or(
+            isNull(flagRollbackPolicy.checkedAt),
+            lte(flagRollbackPolicy.checkedAt, new Date(now.getTime() - 15_000)),
+          ),
+        ),
+      )
+      .orderBy(sql`${flagRollbackPolicy.checkedAt} asc nulls first`)
+      .limit(1)
+      .for("update", { skipLocked: true });
+    if (!row) return null;
+    await tx
+      .update(flagRollbackPolicy)
+      .set({ checkedAt: now })
+      .where(eq(flagRollbackPolicy.id, row.id));
+    return row;
+  }
+  async finishRollback(
+    tx: Transaction,
+    id: string,
+    status: "triggered" | "blocked" | "expired",
+    reason: string,
+  ): Promise<void> {
+    await tx
+      .update(flagRollbackPolicy)
+      .set({ status, reason, finishedAt: new Date() })
+      .where(eq(flagRollbackPolicy.id, id));
+  }
+  async rollbackObservations(
+    tx: Transaction,
+    row: FlagRollbackRow,
+    flagKey: string,
+    now: Date,
+  ): Promise<{ total: number; errors: number }> {
+    const since = new Date(
+      Math.max(
+        row.armedAt.getTime(),
+        now.getTime() - row.windowMinutes * 60_000,
+      ),
+    );
+    const [counts] = await tx
+      .select({
+        total: sql<number>`count(*)::int`,
+        errors: sql<number>`count(*) filter (where ${evaluationEvent.outcome} = 'error')::int`,
+      })
+      .from(evaluationEvent)
+      .where(
+        and(
+          eq(evaluationEvent.projectId, row.projectId),
+          eq(evaluationEvent.environmentId, row.environmentId),
+          eq(evaluationEvent.flagKey, flagKey),
+          eq(evaluationEvent.flagVersion, row.currentVersion),
+          eq(evaluationEvent.kind, "outcome"),
+          gte(evaluationEvent.createdAt, since),
+          lte(evaluationEvent.createdAt, now),
+        ),
+      );
+    return counts ?? { total: 0, errors: 0 };
+  }
+  async clientVisibility(flagId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ clientVisible: flag.clientVisible })
+      .from(flag)
+      .where(eq(flag.id, flagId))
+      .limit(1);
+    return row?.clientVisible ?? false;
+  }
+
+  async setClientVisibility(
+    tx: Transaction,
+    flagId: string,
+    clientVisible: boolean,
+  ): Promise<void> {
+    await tx
+      .update(flag)
+      .set({ clientVisible, updatedAt: new Date() })
+      .where(eq(flag.id, flagId));
+  }
+  async insertSchedule(
+    tx: Transaction,
+    record: NewScheduledFlagChange,
+  ): Promise<ScheduledFlagChangeRow> {
+    const [row] = await tx
+      .insert(scheduledFlagChange)
+      .values(record)
+      .returning();
+    if (!row) throw new Error("Scheduled change was not inserted.");
+    return row;
+  }
+
+  async listSchedules(
+    flagId: string,
+    environmentId: string,
+    limit: number,
+    cursor: string | null,
+  ): Promise<ScheduledFlagChangeRow[]> {
+    return db
+      .select()
+      .from(scheduledFlagChange)
+      .where(
+        and(
+          eq(scheduledFlagChange.flagId, flagId),
+          eq(scheduledFlagChange.environmentId, environmentId),
+          cursor ? gt(scheduledFlagChange.id, cursor) : undefined,
+        ),
+      )
+      .orderBy(asc(scheduledFlagChange.id))
+      .limit(limit + 1);
+  }
+
+  async cancelSchedule(
+    tx: Transaction,
+    flagId: string,
+    environmentId: string,
+    id: string,
+  ): Promise<boolean> {
+    const rows = await tx
+      .update(scheduledFlagChange)
+      .set({ status: "cancelled", finishedAt: new Date() })
+      .where(
+        and(
+          eq(scheduledFlagChange.id, id),
+          eq(scheduledFlagChange.flagId, flagId),
+          eq(scheduledFlagChange.environmentId, environmentId),
+          eq(scheduledFlagChange.status, "pending"),
+        ),
+      )
+      .returning({ id: scheduledFlagChange.id });
+    return rows.length > 0;
+  }
+
+  async claimDueSchedule(
+    tx: Transaction,
+    now: Date,
+  ): Promise<ScheduledFlagChangeRow | null> {
+    const [row] = await tx
+      .select()
+      .from(scheduledFlagChange)
+      .where(
+        and(
+          eq(scheduledFlagChange.status, "pending"),
+          lte(scheduledFlagChange.executeAt, now),
+        ),
+      )
+      .orderBy(asc(scheduledFlagChange.executeAt))
+      .limit(1)
+      .for("update", { skipLocked: true });
+    return row ?? null;
+  }
+
+  async finishSchedule(
+    tx: Transaction,
+    id: string,
+    failureReason: string | null,
+  ): Promise<void> {
+    await tx
+      .update(scheduledFlagChange)
+      .set({
+        status: failureReason ? "failed" : "completed",
+        failureReason,
+        finishedAt: new Date(),
+      })
+      .where(eq(scheduledFlagChange.id, id));
+  }
+
+  async scheduleActor(
+    organizationId: string,
+    userId: string,
+  ): Promise<{ workspaceRole: string; userName: string } | null> {
+    const [row] = await db
+      .select({ workspaceRole: member.role, userName: user.name })
+      .from(member)
+      .innerJoin(user, eq(user.id, member.userId))
+      .where(
+        and(
+          eq(member.organizationId, organizationId),
+          eq(member.userId, userId),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async scheduleKeys(
+    tx: Transaction,
+    row: Pick<
+      ScheduledFlagChangeRow,
+      "organizationId" | "projectId" | "flagId" | "environmentId"
+    >,
+  ): Promise<{
+    projectKey: string;
+    flagKey: string;
+    environmentKey: string;
+  } | null> {
+    const [keys] = await tx
+      .select({
+        projectKey: project.key,
+        flagKey: flag.key,
+        environmentKey: environment.key,
+      })
+      .from(project)
+      .innerJoin(
+        flag,
+        and(eq(flag.projectId, project.id), eq(flag.id, row.flagId)),
+      )
+      .innerJoin(
+        environment,
+        and(
+          eq(environment.projectId, project.id),
+          eq(environment.id, row.environmentId),
+        ),
+      )
+      .where(
+        and(
+          eq(project.id, row.projectId),
+          eq(project.organizationId, row.organizationId),
+        ),
+      )
+      .limit(1);
+    return keys ?? null;
+  }
   /** Fetches limit + 1 rows so the caller can tell whether another page exists. */
   async list(projectId: string, filter: FlagListFilter): Promise<FlagRow[]> {
     const conditions = [eq(flag.projectId, projectId)];
@@ -97,7 +406,9 @@ export class FlagsRepository {
     const conditions = [inArray(flagEnvironmentConfig.flagId, flagIds)];
 
     if (filter.environmentId) {
-      conditions.push(eq(flagEnvironmentConfig.environmentId, filter.environmentId));
+      conditions.push(
+        eq(flagEnvironmentConfig.environmentId, filter.environmentId),
+      );
     }
 
     if (filter.environmentKey) {
@@ -132,10 +443,7 @@ export class FlagsRepository {
   }
 
   /** Every flag of one project, read inside a transaction that configures them. */
-  async listForProject(
-    tx: Transaction,
-    projectId: string,
-  ): Promise<FlagRow[]> {
+  async listForProject(tx: Transaction, projectId: string): Promise<FlagRow[]> {
     return tx
       .select()
       .from(flag)
@@ -367,9 +675,7 @@ export class FlagsRepository {
           : { description: patch.description }),
         updatedAt: new Date(),
       })
-      .where(
-        and(eq(flagVariation.flagId, flagId), eq(flagVariation.key, key)),
-      );
+      .where(and(eq(flagVariation.flagId, flagId), eq(flagVariation.key, key)));
   }
 
   async deleteVariation(
@@ -379,9 +685,7 @@ export class FlagsRepository {
   ): Promise<void> {
     await tx
       .delete(flagVariation)
-      .where(
-        and(eq(flagVariation.flagId, flagId), eq(flagVariation.key, key)),
-      );
+      .where(and(eq(flagVariation.flagId, flagId), eq(flagVariation.key, key)));
   }
 
   /** Everything that would break if this variation key disappeared. */
@@ -533,11 +837,48 @@ export class FlagsRepository {
       .limit(limit + 1);
   }
 
+  async findVersion(
+    flagId: string,
+    environmentId: string,
+    version: number,
+  ): Promise<FlagVersionSummary | null> {
+    const [row] = await db
+      .select()
+      .from(flagVersion)
+      .where(
+        and(
+          eq(flagVersion.flagId, flagId),
+          eq(flagVersion.environmentId, environmentId),
+          eq(flagVersion.version, version),
+        ),
+      )
+      .limit(1);
+    return row ?? null;
+  }
+
+  async lockConfig(
+    tx: Transaction,
+    flagId: string,
+    environmentId: string,
+  ): Promise<void> {
+    await tx
+      .select({ flagId: flagEnvironmentConfig.flagId })
+      .from(flagEnvironmentConfig)
+      .where(
+        and(
+          eq(flagEnvironmentConfig.flagId, flagId),
+          eq(flagEnvironmentConfig.environmentId, environmentId),
+        ),
+      )
+      .for("update");
+  }
+
   async listRules(
     flagId: string,
     environmentId: string,
+    connection: Database | Transaction = db,
   ): Promise<RuleWithConditions[]> {
-    const rules = await db
+    const rules = await connection
       .select({
         id: targetingRule.id,
         flagId: targetingRule.flagId,
@@ -560,7 +901,7 @@ export class FlagsRepository {
 
     if (rules.length === 0) return [];
 
-    const conditions = await db
+    const conditions = await connection
       .select({
         id: targetingCondition.id,
         ruleId: targetingCondition.ruleId,
@@ -637,8 +978,9 @@ export class FlagsRepository {
   async listTargets(
     flagId: string,
     environmentId: string,
+    connection: Database | Transaction = db,
   ): Promise<IndividualTargetRow[]> {
-    return db
+    return connection
       .select({
         flagId: flagIndividualTarget.flagId,
         environmentId: flagIndividualTarget.environmentId,
@@ -734,7 +1076,15 @@ export class FlagsRepository {
     organizationId: string,
     filter: WorkspaceFlagFilter,
   ): Promise<Array<FlagRow & { projectKey: string }>> {
-    const conditions = [eq(project.organizationId, organizationId)];
+    const conditions = [
+      eq(project.organizationId, organizationId),
+      isNull(project.archivedAt),
+    ];
+
+    if (filter.projectIds) {
+      if (filter.projectIds.length === 0) return [];
+      conditions.push(inArray(project.id, filter.projectIds));
+    }
 
     if (filter.projectKey) {
       conditions.push(eq(project.key, filter.projectKey));
@@ -754,8 +1104,9 @@ export class FlagsRepository {
     if (filter.cursor) {
       // Ordered by (project key, flag key), so the cursor holds both and the
       // comparison is the same tuple comparison the SQL does.
-      const [cursorProject, cursorFlag] =
-        filter.cursor.split(WORKSPACE_FLAG_CURSOR_SEPARATOR);
+      const [cursorProject, cursorFlag] = filter.cursor.split(
+        WORKSPACE_FLAG_CURSOR_SEPARATOR,
+      );
 
       if (cursorProject && cursorFlag) {
         conditions.push(
@@ -863,10 +1214,7 @@ export class FlagsRepository {
       .where(
         and(
           eq(flagIndividualTarget.flagId, source.flagId),
-          eq(
-            flagIndividualTarget.environmentId,
-            input.sourceEnvironmentId,
-          ),
+          eq(flagIndividualTarget.environmentId, input.sourceEnvironmentId),
         ),
       );
 
