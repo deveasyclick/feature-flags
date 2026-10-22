@@ -51,6 +51,41 @@ async function owner(): Promise<TestSession> {
 }
 
 describe("workspace settings", () => {
+  it("rejects security policies that are not enforced", async () => {
+    const session = await owner();
+    const current = await app.request("/v1/workspace/security", {
+      headers: headers(session),
+    });
+    const policy = (await current.json()) as WorkspaceSecuritySettings;
+    const response = await app.request("/v1/workspace/security", {
+      method: "PATCH",
+      headers: headers(session),
+      body: JSON.stringify({ ...policy, twoFactorEnabled: true }),
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("revokes sessions older than the workspace maximum age", async () => {
+    const userSession = await owner();
+    const { db } = await import("../../db/client.js");
+    const { session } = await import("../../db/schema/index.js");
+    const { eq } = await import("drizzle-orm");
+    await db
+      .update(session)
+      .set({ createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) })
+      .where(eq(session.userId, userSession.userId));
+    const response = await app.request("/v1/me", {
+      headers: headers(userSession),
+    });
+    expect(response.status).toBe(401);
+    expect(
+      await db
+        .select()
+        .from(session)
+        .where(eq(session.userId, userSession.userId)),
+    ).toHaveLength(0);
+  });
+
   it("reads and updates the profile", async () => {
     const session = await owner();
 
@@ -126,21 +161,21 @@ describe("workspace settings", () => {
       body: JSON.stringify({
         ssoProvider: null,
         ssoConnected: false,
-        twoFactorEnabled: true,
+        twoFactorEnabled: false,
         sessionTimeout: "12h",
-        allowedEmailDomains: ["iwifunni.dev"],
+        allowedEmailDomains: [],
         ipAllowlistConfigured: false,
-        auditRetentionDays: 365,
+        auditRetentionDays: 90,
       }),
     });
 
     expect(updated.status).toBe(200);
     const settings = (await updated.json()) as WorkspaceSecuritySettings;
     expect(settings).toMatchObject({
-      twoFactorEnabled: true,
+      twoFactorEnabled: false,
       sessionTimeout: "12h",
-      auditRetentionDays: 365,
-      allowedEmailDomains: ["iwifunni.dev"],
+      auditRetentionDays: 90,
+      allowedEmailDomains: [],
     });
 
     // The profile write must not wipe the security block stored beside it.
@@ -155,7 +190,7 @@ describe("workspace settings", () => {
     });
     await expect(reread.json()).resolves.toMatchObject({
       sessionTimeout: "12h",
-      auditRetentionDays: 365,
+      auditRetentionDays: 90,
     });
   });
 

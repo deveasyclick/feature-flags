@@ -18,6 +18,33 @@ import {
 
 let app: Awaited<ReturnType<typeof loadApp>>;
 
+it("searches only this project's key names and prefixes with literal wildcards", async () => {
+  const current = await fixture();
+  const key = await issueKey(current, { name: "QA_% key" });
+  await issueKey(current, { name: "QA other key" });
+  const matching = await app.request(
+    `/v1/projects/${current.projectKey}/api-keys?search=${encodeURIComponent("QA_%")}`,
+    { headers: headers(current.session) },
+  );
+  await expect(matching.json()).resolves.toMatchObject({
+    data: [{ id: key.id }],
+    nextCursor: null,
+  });
+  const prefix = await app.request(
+    `/v1/projects/${current.projectKey}/api-keys?search=${key.prefix}`,
+    { headers: headers(current.session) },
+  );
+  await expect(prefix.json()).resolves.toMatchObject({
+    data: [{ id: key.id }],
+  });
+  const other = await fixture();
+  const isolated = await app.request(
+    `/v1/projects/${other.projectKey}/api-keys?search=QA`,
+    { headers: headers(other.session) },
+  );
+  await expect(isolated.json()).resolves.toMatchObject({ data: [] });
+});
+
 beforeAll(async () => {
   loadTestEnv();
   await resetTestDatabase();
@@ -305,9 +332,9 @@ describe("api-keys module", () => {
     const { auditLog } = await import("../../db/schema/index.js");
     const actions = (await db.select().from(auditLog)).map((row) => row.action);
 
-    expect(actions.filter((action) => action === "api_key.revoked")).toHaveLength(
-      1,
-    );
+    expect(
+      actions.filter((action) => action === "api_key.revoked"),
+    ).toHaveLength(1);
     expect(actions).toContain("api_key.created");
   });
 

@@ -266,7 +266,7 @@ describe("environments module", () => {
     expect(detail.isProtected).toBe(true);
     expect(detail.connection.evalUrl).toMatch(/\/v1\/evaluate$/);
     // Streaming and keys do not exist yet, so neither is advertised.
-    expect(detail.connection.streamUrl).toBeNull();
+    expect(detail.connection.streamUrl).toBe("http://localhost/v1/sdk/stream");
     expect(detail.connection.maskedKey).toBeNull();
 
     const { db } = await import("../../db/client.js");

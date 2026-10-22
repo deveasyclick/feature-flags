@@ -114,6 +114,263 @@ async function config(
 }
 
 describe("sdk config", () => {
+  it("streams only version notifications, bounds connections, and releases slots on disconnect", async () => {
+    const test = await fixture();
+    const key = await issueSdkKey(test);
+    const readers: ReadableStreamDefaultReader<Uint8Array>[] = [];
+    try {
+      for (let index = 0; index < 3; index++) {
+        const response = await app.request("/v1/sdk/stream", {
+          headers: { authorization: `Bearer ${key.secret}` },
+        });
+        expect(response.status).toBe(200);
+        expect(response.headers.get("content-type")).toBe("text/event-stream");
+        expect(response.headers.get("x-accel-buffering")).toBe("no");
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("The stream has no body.");
+        readers.push(reader);
+        const chunk = await reader.read();
+        const text = new TextDecoder().decode(chunk.value);
+        expect(text).toContain("event: configuration");
+        const data = text
+          .split("\n")
+          .find((line) => line.startsWith("data: "))
+          ?.slice(6);
+        expect(Object.keys(JSON.parse(data ?? "{}"))).toEqual(["version"]);
+      }
+      const limited = await app.request("/v1/sdk/stream", {
+        headers: { authorization: `Bearer ${key.secret}` },
+      });
+      expect(limited.status).toBe(429);
+      await readers.pop()?.cancel();
+      const reopened = await app.request("/v1/sdk/stream", {
+        headers: { authorization: `Bearer ${key.secret}` },
+      });
+      expect(reopened.status).toBe(200);
+      await reopened.body?.cancel();
+      const client = await issueSdkKey(test, { kind: "client" });
+      const refused = await app.request("/v1/sdk/stream", {
+        headers: { authorization: `Bearer ${client.secret}` },
+      });
+      expect(refused.status).toBe(403);
+    } finally {
+      await Promise.all(readers.map((reader) => reader.cancel()));
+    }
+  });
+
+  it("deduplicates analytics, stores no raw subject, and restricts totals to the workspace", async () => {
+    const test = await fixture();
+    const key = await issueSdkKey(test, {
+      scopes: ["flags:read", "events:write"],
+    });
+    const { randomUUID } = await import("node:crypto");
+    const event = {
+      id: randomUUID(),
+      flagKey: "checkout-v2",
+      variation: "on",
+      reason: "default_variation",
+      userId: "private-subject@example.com",
+      latencyMs: 2.5,
+    };
+    const send = (secret: string) =>
+      app.request("/v1/sdk/events", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${secret}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ events: [event] }),
+      });
+    const first = await send(key.secret);
+    expect(first.status).toBe(202);
+    expect(await first.json()).toEqual({ accepted: 1 });
+    expect(await (await send(key.secret)).json()).toEqual({ accepted: 0 });
+    const readOnly = await issueSdkKey(test);
+    expect((await send(readOnly.secret)).status).toBe(403);
+    const summary = await app.request("/v1/analytics", {
+      headers: headers(test.session),
+    });
+    expect(summary.status).toBe(200);
+    await expect(summary.json()).resolves.toMatchObject({
+      evaluations: 1,
+      users: 1,
+      avgLatencyMs: 2.5,
+      p95LatencyMs: 2.5,
+      topFlags: [{ flagKey: "checkout-v2" }],
+      environments: [{ environmentKey: "development", evaluations: 1 }],
+    });
+    const outsider = await signUp(app);
+    await seedWorkspace(outsider.userId, "owner");
+    const hidden = await app.request("/v1/analytics", {
+      headers: headers(outsider),
+    });
+    await expect(hidden.json()).resolves.toMatchObject({
+      evaluations: 0,
+      users: 0,
+      topFlags: [],
+    });
+    const forbiddenProject = await app.request(
+      `/v1/analytics?projectKey=${test.projectKey}`,
+      { headers: headers(outsider) },
+    );
+    expect(forbiddenProject.status).toBe(404);
+    const { db } = await import("../../db/client.js");
+    const { evaluationEvent } = await import("../../db/schema/index.js");
+    const rows = await db.select().from(evaluationEvent);
+    expect(rows[0]?.subjectHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(rows)).not.toContain(event.userId);
+    await db
+      .update(evaluationEvent)
+      .set({ createdAt: new Date(Date.now() - 91 * 86_400_000) });
+    const { retainEvaluationEvents } = await import("../../app.js");
+    await retainEvaluationEvents();
+    expect(await db.select().from(evaluationEvent)).toEqual([]);
+  });
+
+  it("delivers only opted-in evaluated values to client keys and keeps targeting private", async () => {
+    const test = await fixture();
+    await createFlag(test, "browser-banner");
+    await createFlag(test, "private-control");
+    const key = await issueSdkKey(test, { kind: "client" });
+    const path = `/v1/projects/${test.projectKey}/flags/browser-banner/client-visibility`;
+    const set = await app.request(path, {
+      method: "PATCH",
+      headers: headers(test.session),
+      body: JSON.stringify({ clientVisible: true }),
+    });
+    expect(set.status).toBe(200);
+    const response = await app.request("/v1/sdk/evaluate", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${key.secret}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        user: { id: "browser-user", email: "person@example.com" },
+        flags: ["browser-banner", "private-control", "does-not-exist"],
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const preflight = await app.request("/v1/sdk/evaluate", {
+      method: "OPTIONS",
+      headers: {
+        origin: "https://customer.example",
+        "access-control-request-method": "POST",
+        "access-control-request-headers": "authorization,content-type",
+      },
+    });
+    expect(preflight.headers.get("access-control-allow-origin")).toBe("*");
+    expect(
+      preflight.headers.get("access-control-allow-credentials"),
+    ).toBeNull();
+    expect(await response.json()).toEqual({
+      flags: { "browser-banner": { value: false, enabled: false } },
+    });
+    expect((await config(key.secret)).status).toBe(403);
+    const targeting = await app.request(
+      `/v1/projects/${test.projectKey}/flags/browser-banner/environments/development/rules`,
+      {
+        method: "PUT",
+        headers: headers(test.session),
+        body: JSON.stringify({
+          rules: [
+            {
+              conditions: [
+                {
+                  attribute: "name",
+                  attributeType: "string",
+                  operator: "matches_regex",
+                  values: ["(a+)+$"],
+                },
+              ],
+              variation: "on",
+              segmentKeys: [],
+            },
+          ],
+        }),
+      },
+    );
+    expect(targeting.status).toBe(200);
+    const regex = await app.request("/v1/sdk/evaluate", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${key.secret}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        user: { id: "browser-user", name: "a".repeat(50) + "!" },
+        flags: ["browser-banner"],
+      }),
+    });
+    expect(regex.status).toBe(400);
+    await app.request(path, {
+      method: "PATCH",
+      headers: headers(test.session),
+      body: JSON.stringify({ clientVisible: false }),
+    });
+    const revoked = await app.request("/v1/sdk/evaluate", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${key.secret}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        user: { id: "browser-user" },
+        flags: ["browser-banner"],
+      }),
+    });
+    expect(await revoked.json()).toEqual({ flags: {} });
+  });
+
+  it("keeps snapshot reads on one committed database version", async () => {
+    const underTest = await fixture();
+    const key = await issueSdkKey(underTest);
+    if (!key.environmentId)
+      throw new Error("The fixture must issue an environment key.");
+    const environmentId = key.environmentId;
+    const { SdkRepository } = await import(
+      "../../modules/sdk/sdk.repository.js"
+    );
+    const { db } = await import("../../db/client.js");
+    const { project } = await import("../../db/schema/index.js");
+    const { eq } = await import("drizzle-orm");
+    const repository = new SdkRepository();
+    await repository.withSnapshot(async (tx) => {
+      const before = await repository.findMeta(
+        underTest.projectId,
+        environmentId,
+        tx,
+      );
+      await db
+        .update(project)
+        .set({ name: "A concurrent rename" })
+        .where(eq(project.id, underTest.projectId));
+      const after = await repository.findMeta(
+        underTest.projectId,
+        environmentId,
+        tx,
+      );
+      expect(after?.projectName).toBe(before?.projectName);
+      expect(after?.projectName).not.toBe("A concurrent rename");
+    });
+    const response = await config(key.secret);
+    await expect(response.json()).resolves.toMatchObject({
+      project: { name: "A concurrent rename" },
+    });
+  });
+
+  it("never exposes configuration snapshots to browser keys", async () => {
+    const underTest = await fixture();
+    await createFlag(underTest);
+    const key = await issueSdkKey(underTest, { kind: "client" });
+    const response = await config(key.secret);
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "forbidden" },
+    });
+  });
+
   it("serves one environment's configuration to a runtime key", async () => {
     const underTest = await fixture();
     await createFlag(underTest);

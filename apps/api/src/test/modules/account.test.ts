@@ -50,6 +50,50 @@ async function fixture(): Promise<TestSession> {
 }
 
 describe("account module", () => {
+  it("reads persisted preferences only for the current user", async () => {
+    const session = await fixture();
+    expect((await app.request("/v1/me/preferences")).status).toBe(401);
+    const initial = await app.request("/v1/me/preferences", {
+      headers: headers(session),
+    });
+    await expect(initial.json()).resolves.toMatchObject({
+      theme: "system",
+      notifications: { flagChanges: true },
+    });
+    await app.request("/v1/me/preferences", {
+      method: "PATCH",
+      headers: headers(session),
+      body: JSON.stringify({
+        theme: "dark",
+        defaultEnvironmentKey: "production",
+      }),
+    });
+    await app.request("/v1/me/notifications", {
+      method: "PATCH",
+      headers: headers(session),
+      body: JSON.stringify({
+        flagChanges: false,
+        weeklyDigest: false,
+        incidentAlerts: false,
+      }),
+    });
+    const saved = await app.request("/v1/me/preferences", {
+      headers: headers(session),
+    });
+    const value = (await saved.json()) as UserPreferences;
+    expect(value.theme).toBe("dark");
+    expect(value.defaultEnvironmentId).not.toBeNull();
+    expect(value.notifications.flagChanges).toBe(false);
+    const other = await signUp(app);
+    const isolated = await app.request("/v1/me/preferences", {
+      headers: headers(other),
+    });
+    await expect(isolated.json()).resolves.toMatchObject({
+      theme: "system",
+      defaultEnvironmentId: null,
+      notifications: { flagChanges: true },
+    });
+  });
   it("updates the display name and refuses a different sign-in email", async () => {
     const session = await fixture();
 
@@ -130,7 +174,10 @@ describe("account module", () => {
     const preferences = await app.request("/v1/me/preferences", {
       method: "PATCH",
       headers: headers(session),
-      body: JSON.stringify({ theme: "dark", defaultEnvironmentKey: "development" }),
+      body: JSON.stringify({
+        theme: "dark",
+        defaultEnvironmentKey: "development",
+      }),
     });
 
     expect(preferences.status).toBe(200);

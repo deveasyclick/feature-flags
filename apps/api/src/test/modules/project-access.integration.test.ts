@@ -106,14 +106,20 @@ async function setProjectRole(
     .update(projectMember)
     .set({ role })
     .where(
-      and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId)),
+      and(
+        eq(projectMember.projectId, projectId),
+        eq(projectMember.userId, userId),
+      ),
     );
 }
 
 function readFlags(session: TestSession, projectKey: string) {
-  return app.request(`/v1/projects/${projectKey}/flags?environmentKey=development`, {
-    headers: { cookie: session.cookie },
-  });
+  return app.request(
+    `/v1/projects/${projectKey}/flags?environmentKey=development`,
+    {
+      headers: { cookie: session.cookie },
+    },
+  );
 }
 
 function createFlag(session: TestSession, projectKey: string, key: string) {
@@ -129,6 +135,49 @@ function createFlag(session: TestSession, projectKey: string, key: string) {
 }
 
 describe("project access gate", () => {
+  it("hides project data from workspace-wide reads and evaluation after project access is removed", async () => {
+    const underTest = await fixture();
+    const created = await createFlag(
+      underTest.session,
+      underTest.projectKey,
+      "private-feature",
+    );
+    expect(created.status).toBe(201);
+    const outsider = await person(underTest, "member", "viewer");
+    expect((await readFlags(outsider, underTest.projectKey)).status).toBe(200);
+    const { db } = await import("../../db/client.js");
+    const { projectMember } = await import("../../db/schema/index.js");
+    const { and, eq } = await import("drizzle-orm");
+    await db
+      .delete(projectMember)
+      .where(
+        and(
+          eq(projectMember.projectId, underTest.projectId),
+          eq(projectMember.userId, outsider.userId),
+        ),
+      );
+    for (const path of ["/v1/projects", "/v1/flags", "/v1/audit-logs"]) {
+      const response = await app.request(path, { headers: headers(outsider) });
+      expect(response.status).toBe(200);
+      const body: unknown = await response.json();
+      expect(JSON.stringify(body)).not.toContain(underTest.projectKey);
+      expect(JSON.stringify(body)).not.toContain("private-feature");
+    }
+    const evaluated = await app.request("/v1/evaluate", {
+      method: "POST",
+      headers: headers(outsider),
+      body: JSON.stringify({
+        projectKey: underTest.projectKey,
+        flag: "private-feature",
+        environment: "development",
+        user: { id: "u1" },
+      }),
+    });
+    await expect(evaluated.json()).resolves.toMatchObject({
+      reason: "flag_not_found",
+    });
+  });
+
   it("lets a workspace owner in without any project membership row", async () => {
     const underTest = await fixture();
 

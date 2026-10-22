@@ -91,28 +91,16 @@ export async function resetTestDatabase(): Promise<void> {
   const client = new Client({ connectionString: url });
   await client.connect();
   await client.query(
-    "drop schema if exists public cascade; create schema public;",
+    "drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;",
   );
   await client.end();
 
-  /**
-   * The schema is pushed from `src/db/schema/`, not replayed from `.sql` files.
-   *
-   * This project is used with `drizzle-kit push`, so there is no migration
-   * directory to replay and the schema modules are the only description of the
-   * database that exists. Deriving the test schema from the same place as the
-   * development one means the two cannot disagree.
-   */
-  const { pushSchema } = await import("drizzle-kit/api");
-  const schema = await import("../db/schema/index.js");
+  const { migrate } = await import("drizzle-orm/node-postgres/migrator");
+  const { fileURLToPath } = await import("node:url");
   const { db } = await import("../db/client.js");
-
-  const { apply } = await pushSchema(
-    schema as unknown as Record<string, unknown>,
-    db as never,
-  );
-
-  await apply();
+  await migrate(db, {
+    migrationsFolder: fileURLToPath(new URL("../../drizzle", import.meta.url)),
+  });
 }
 
 /** Empties every table so one test cannot observe another's rows. */

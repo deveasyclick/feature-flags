@@ -150,6 +150,395 @@ const RULES = {
 };
 
 describe("flags targeting", () => {
+  it("rolls back once only after enough outcomes for the armed version exceed the threshold", async () => {
+    const test = await fixture();
+    await createFlag(test, "guarded");
+    const path = configPath(test, "guarded");
+    const config = {
+      enabled: true,
+      offVariation: "off",
+      defaultVariation: "on",
+      rolloutPercentage: 100,
+      bucketBy: "userId",
+    };
+    expect(
+      (
+        await app.request(path, {
+          method: "PATCH",
+          headers: headers(test.session),
+          body: JSON.stringify(config),
+        })
+      ).status,
+    ).toBe(200);
+    const armed = await app.request(`${path}/rollback-policies`, {
+      method: "POST",
+      headers: headers(test.session),
+      body: JSON.stringify({
+        currentVersion: 2,
+        targetVersion: 1,
+        errorPercentage: 50,
+        minimumSamples: 10,
+        windowMinutes: 5,
+      }),
+    });
+    expect(armed.status).toBe(201);
+    const issued = await app.request(
+      `/v1/projects/${test.projectKey}/api-keys`,
+      {
+        method: "POST",
+        headers: headers(test.session),
+        body: JSON.stringify({
+          name: "Outcomes",
+          kind: "server",
+          environmentKey: "staging",
+          scopes: ["flags:read", "events:write"],
+        }),
+      },
+    );
+    expect(issued.status).toBe(201);
+    const key = (await issued.json()) as { secret: string };
+    async function report(version: number, count: number) {
+      const response = await app.request("/v1/sdk/events", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${key.secret}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          events: Array.from({ length: count }, () => ({
+            id: randomUUID(),
+            flagKey: "guarded",
+            flagVersion: version,
+            kind: "outcome",
+            outcome: "error",
+            variation: "on",
+            reason: "default_variation",
+            latencyMs: 0,
+          })),
+        }),
+      });
+      expect(response.status).toBe(202);
+    }
+    const { runFlagRollbackPolicies } = await import("../../app.js");
+    const now = Date.now();
+    await report(1, 10);
+    await runFlagRollbackPolicies(new Date(now + 1000));
+    expect((await readConfig(test, "guarded")).enabled).toBe(true);
+    await report(2, 9);
+    await runFlagRollbackPolicies(new Date(now + 17000));
+    expect((await readConfig(test, "guarded")).enabled).toBe(true);
+    await report(2, 1);
+    const runs = await Promise.all([
+      runFlagRollbackPolicies(new Date(now + 33000)),
+      runFlagRollbackPolicies(new Date(now + 33000)),
+    ]);
+    expect(runs.reduce((sum, count) => sum + count, 0)).toBe(1);
+    expect((await readConfig(test, "guarded")).enabled).toBe(false);
+    const policies = await app.request(`${path}/rollback-policies`, {
+      headers: headers(test.session),
+    });
+    await expect(policies.json()).resolves.toMatchObject({
+      data: [{ status: "triggered" }],
+    });
+    const versions = await app.request(`${path}/versions`, {
+      headers: headers(test.session),
+    });
+    await expect(versions.json()).resolves.toMatchObject({
+      data: [
+        { version: 3, description: "Automatically restored version 1" },
+        { version: 2 },
+        { version: 1 },
+      ],
+    });
+    const inbox = await app.request("/v1/notifications", {
+      headers: headers(test.session),
+    });
+    await expect(inbox.json()).resolves.toMatchObject({
+      data: [{ action: "flag.automatically_rolled_back", read: false }],
+    });
+  });
+
+  it("blocks rollback after a newer publish or protection change and hides policies across tenants", async () => {
+    const test = await fixture();
+    await createFlag(test, "guarded");
+    const path = configPath(test, "guarded");
+    const config = {
+      enabled: true,
+      offVariation: "off",
+      defaultVariation: "on",
+      rolloutPercentage: 100,
+      bucketBy: "userId",
+    };
+    await app.request(path, {
+      method: "PATCH",
+      headers: headers(test.session),
+      body: JSON.stringify(config),
+    });
+    const arm = (currentVersion: number) =>
+      app.request(`${path}/rollback-policies`, {
+        method: "POST",
+        headers: headers(test.session),
+        body: JSON.stringify({
+          currentVersion,
+          targetVersion: 1,
+          errorPercentage: 50,
+          minimumSamples: 10,
+          windowMinutes: 5,
+        }),
+      });
+    expect((await arm(2)).status).toBe(201);
+    await app.request(path, {
+      method: "PATCH",
+      headers: headers(test.session),
+      body: JSON.stringify({ ...config, rolloutPercentage: 75 }),
+    });
+    const { runFlagRollbackPolicies } = await import("../../app.js");
+    await runFlagRollbackPolicies();
+    expect((await readConfig(test, "guarded")).rolloutPercentage).toBe(75);
+    expect((await arm(3)).status).toBe(201);
+    const { db } = await import("../../db/client.js");
+    const { environment } = await import("../../db/schema/index.js");
+    const { eq } = await import("drizzle-orm");
+    await db
+      .update(environment)
+      .set({ isProtected: true })
+      .where(eq(environment.id, test.environmentId));
+    await runFlagRollbackPolicies();
+    const policies = await app.request(`${path}/rollback-policies`, {
+      headers: headers(test.session),
+    });
+    const body = (await policies.json()) as { data: Array<{ status: string }> };
+    expect(body.data.map((row) => row.status)).toEqual(["blocked", "blocked"]);
+    const outsider = await signUp(app);
+    await seedWorkspace(outsider.userId, "owner");
+    expect(
+      (
+        await app.request(`${path}/rollback-policies`, {
+          headers: headers(outsider),
+        })
+      ).status,
+    ).toBe(404);
+    expect((await arm(3)).status).toBe(409);
+  });
+
+  it("runs a due schedule once across competing workers and preserves newer manual publishes", async () => {
+    const test = await fixture();
+    await createFlag(test, "checkout-v2");
+    const executeAt = new Date(Date.now() + 120_000).toISOString();
+    const input = {
+      executeAt,
+      baseVersion: 1,
+      payload: {
+        config: {
+          enabled: true,
+          offVariation: "off",
+          defaultVariation: "on",
+          rolloutPercentage: 25,
+          bucketBy: "userId",
+        },
+      },
+    };
+    const response = await app.request(
+      configPath(test, "checkout-v2", "/schedules"),
+      {
+        method: "POST",
+        headers: headers(test.session),
+        body: JSON.stringify(input),
+      },
+    );
+    expect(response.status).toBe(201);
+    const { runDueFlagSchedules } = await import("../../app.js");
+    expect(await runDueFlagSchedules(new Date())).toBe(0);
+    const runs = await Promise.all([
+      runDueFlagSchedules(new Date(executeAt)),
+      runDueFlagSchedules(new Date(executeAt)),
+    ]);
+    expect(runs.reduce((sum, count) => sum + count, 0)).toBe(1);
+    expect(await readConfig(test, "checkout-v2")).toMatchObject({
+      enabled: true,
+      rolloutPercentage: 25,
+    });
+    const second = await app.request(
+      configPath(test, "checkout-v2", "/schedules"),
+      {
+        method: "POST",
+        headers: headers(test.session),
+        body: JSON.stringify({ ...input, baseVersion: 2 }),
+      },
+    );
+    expect(second.status).toBe(201);
+    const manual = await app.request(configPath(test, "checkout-v2"), {
+      method: "PATCH",
+      headers: headers(test.session),
+      body: JSON.stringify({ ...input.payload.config, rolloutPercentage: 70 }),
+    });
+    expect(manual.status).toBe(200);
+    await runDueFlagSchedules(new Date(executeAt));
+    expect(await readConfig(test, "checkout-v2")).toMatchObject({
+      rolloutPercentage: 70,
+    });
+    const list = await app.request(
+      configPath(test, "checkout-v2", "/schedules"),
+      { headers: headers(test.session) },
+    );
+    const body = (await list.json()) as { data: { status: string }[] };
+    expect(body.data.map((row) => row.status).sort()).toEqual([
+      "completed",
+      "failed",
+    ]);
+  });
+
+  it("rejects stale scheduling, allows cancellation and rechecks protection when due", async () => {
+    const test = await fixture();
+    await createFlag(test, "checkout-v2");
+    const executeAt = new Date(Date.now() + 120_000).toISOString();
+    const input = {
+      executeAt,
+      baseVersion: 1,
+      payload: {
+        targets: { targets: [{ userId: "tester", variationKey: "on" }] },
+      },
+    };
+    const create = () =>
+      app.request(configPath(test, "checkout-v2", "/schedules"), {
+        method: "POST",
+        headers: headers(test.session),
+        body: JSON.stringify(input),
+      });
+    const cancelled = await create();
+    const row = (await cancelled.json()) as { id: string };
+    const cancellation = await app.request(
+      configPath(test, "checkout-v2", `/schedules/${row.id}`),
+      { method: "DELETE", headers: headers(test.session) },
+    );
+    expect(cancellation.status).toBe(204);
+    expect((await create()).status).toBe(201);
+    const { db } = await import("../../db/client.js");
+    const { environment } = await import("../../db/schema/index.js");
+    const { eq } = await import("drizzle-orm");
+    await db
+      .update(environment)
+      .set({ isProtected: true })
+      .where(eq(environment.id, test.environmentId));
+    const { runDueFlagSchedules } = await import("../../app.js");
+    expect(await runDueFlagSchedules(new Date(executeAt))).toBe(1);
+    expect((await readConfig(test, "checkout-v2")).individualTargets).toEqual(
+      [],
+    );
+    expect((await create()).status).toBe(409);
+    const list = await app.request(
+      configPath(test, "checkout-v2", "/schedules"),
+      { headers: headers(test.session) },
+    );
+    const body = (await list.json()) as {
+      data: { status: string; failureReason: string | null }[];
+    };
+    expect(body.data.map((row) => row.status).sort()).toEqual([
+      "cancelled",
+      "failed",
+    ]);
+    expect(
+      body.data.find((row) => row.status === "failed")?.failureReason,
+    ).toContain("protected environment");
+  });
+
+  it("captures complete releases and restores configuration, rules and targets atomically", async () => {
+    const test = await fixture();
+    await createFlag(test, "checkout-v2");
+    await createSegment(test, "beta-users");
+    const original = await readConfig(test, "checkout-v2");
+    const publish = await app.request(
+      configPath(test, "checkout-v2", "/targeting"),
+      {
+        method: "PUT",
+        headers: headers(test.session),
+        body: JSON.stringify({
+          ...RULES,
+          targets: [{ userId: "tester-1", variationKey: "on" }],
+          config: {
+            enabled: true,
+            offVariation: "off",
+            defaultVariation: "on",
+            rolloutPercentage: 35,
+            bucketBy: "userId",
+          },
+        }),
+      },
+    );
+    expect(publish.status).toBe(200);
+    const detail = await app.request(
+      configPath(test, "checkout-v2", "/versions/2"),
+      { headers: headers(test.session) },
+    );
+    expect(detail.status).toBe(200);
+    await expect(detail.json()).resolves.toMatchObject({
+      state: {
+        config: { enabled: true, rolloutPercentage: 35 },
+        rules: {
+          rules: [
+            { description: "Internal testers" },
+            { description: "Gradual rollout" },
+          ],
+        },
+        targets: { targets: [{ userId: "tester-1", variationKey: "on" }] },
+      },
+    });
+    const restored = await app.request(
+      configPath(test, "checkout-v2", "/versions/1/restore"),
+      { method: "POST", headers: headers(test.session) },
+    );
+    expect(restored.status).toBe(204);
+    expect(await readConfig(test, "checkout-v2")).toEqual(original);
+    const versions = await app.request(
+      configPath(test, "checkout-v2", "/versions"),
+      { headers: headers(test.session) },
+    );
+    await expect(versions.json()).resolves.toMatchObject({
+      data: [
+        { version: 3, description: "Restored version 1" },
+        { version: 2 },
+        { version: 1 },
+      ],
+    });
+  });
+
+  it("keeps version reads and restores tenant isolated and validates version numbers", async () => {
+    const test = await fixture();
+    await createFlag(test, "checkout-v2");
+    const outsider = await signUp(app);
+    await seedWorkspace(outsider.userId, "owner");
+    for (const [suffix, method] of [
+      ["/versions/1", "GET"],
+      ["/versions/1/restore", "POST"],
+    ]) {
+      const response = await app.request(
+        configPath(test, "checkout-v2", suffix),
+        { method, headers: headers(outsider) },
+      );
+      expect(response.status).toBe(404);
+    }
+    const invalid = await app.request(
+      configPath(test, "checkout-v2", "/versions/nope"),
+      { headers: headers(test.session) },
+    );
+    expect(invalid.status).toBe(400);
+    const { db } = await import("../../db/client.js");
+    const { environment } = await import("../../db/schema/index.js");
+    const { eq } = await import("drizzle-orm");
+    await db
+      .update(environment)
+      .set({ isProtected: true })
+      .where(eq(environment.id, test.environmentId));
+    const protectedRestore = await app.request(
+      configPath(test, "checkout-v2", "/versions/1/restore"),
+      { method: "POST", headers: headers(test.session) },
+    );
+    expect(protectedRestore.status).toBe(409);
+    await expect(protectedRestore.json()).resolves.toMatchObject({
+      error: { code: "approval_required" },
+    });
+  });
+
   it("stores ordered rules with conditions and a partial rollout", async () => {
     const underTest = await fixture();
     await createFlag(underTest, "checkout-v2");
@@ -301,7 +690,9 @@ describe("flags targeting", () => {
     const { auditLog } = await import("../../db/schema/index.js");
     const actions = (await db.select().from(auditLog)).map((row) => row.action);
 
-    expect(actions.filter((action) => action === "flag.updated")).toHaveLength(1);
+    expect(actions.filter((action) => action === "flag.updated")).toHaveLength(
+      1,
+    );
   });
 
   it("refuses a targeting publish that names an unknown segment, writing nothing", async () => {
@@ -471,9 +862,7 @@ describe("workspace-wide flag list", () => {
     await expect(resolved.json()).resolves.toMatchObject({
       key: "shared-key",
       projectId: second.projectId,
-      environments: [
-        expect.objectContaining({ environmentKey: "staging" }),
-      ],
+      environments: [expect.objectContaining({ environmentKey: "staging" })],
     });
   });
 

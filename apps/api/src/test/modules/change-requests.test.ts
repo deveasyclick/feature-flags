@@ -169,6 +169,27 @@ async function environmentConfig(
 }
 
 describe("change requests", () => {
+  it("blocks shared value and lifecycle changes around protected environments", async () => {
+    const underTest = await fixture();
+    const variation = await app.request(
+      `/v1/projects/${underTest.projectKey}/flags/checkout-v2/variations/on`,
+      {
+        method: "PATCH",
+        headers: headers(underTest.engineer),
+        body: JSON.stringify({ value: false }),
+      },
+    );
+    expect(variation.status).toBe(409);
+    const archived = await app.request(
+      `/v1/projects/${underTest.projectKey}/flags/checkout-v2`,
+      {
+        method: "DELETE",
+        headers: headers(underTest.engineer),
+      },
+    );
+    expect(archived.status).toBe(409);
+  });
+
   it("refuses a direct publish into a protected environment", async () => {
     const underTest = await fixture();
 
