@@ -23,6 +23,7 @@ export const ConfigSchema = z
       ),
 
     DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+    REQUESTS_PER_MINUTE: z.coerce.number().int().positive().default(600),
 
     REDIS_URL: optionalString,
 
@@ -52,6 +53,7 @@ export const ConfigSchema = z
     port: value.PORT,
     databaseUrl: value.DATABASE_URL,
     databasePoolMax: value.DATABASE_POOL_MAX,
+    requestsPerMinute: value.REQUESTS_PER_MINUTE,
     redisUrl: value.REDIS_URL,
     betterAuthSecret: value.BETTER_AUTH_SECRET,
     betterAuthUrl: value.BETTER_AUTH_URL,
