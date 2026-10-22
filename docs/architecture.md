@@ -203,13 +203,13 @@ durable.
 
 ### 8.2 Analytics rollups
 
-**Status: not implemented**
+Analytics stores bounded, deduplicated evaluation events in PostgreSQL and aggregates them
+for the dashboard. Subject identifiers are HMAC hashed before persistence. The API server
+runs durable scheduled changes and hourly 90-day event/audit cleanup; see
+`docs/releases-and-analytics.md`. Redis is not the analytics store.
 
-Analytics will use evaluation events and **PostgreSQL rollups**. Redis is not the analytics
-store. No worker or job infrastructure is currently authorized.
-
-Until metrics exist, `Project.status` and `Environment.status` return computed `healthy`
-placeholders, and the analytics dashboard is backed by design fixtures rather than data.
+`Project.status` and `Environment.status` still return computed `healthy` placeholders;
+they are not connected to evaluation error rates.
 
 ### 8.3 Frontend/API origin
 
@@ -235,7 +235,7 @@ Known gaps without an accepted implementation decision.
 
 - **Python and Go SDKs** — the TypeScript engine is the reference implementation; the
   conformance corpus in `sdks/fixtures/conformance.json` is what prevents cross-language
-  drift, and `@iwifunni/node` is the only SDK built so far.
+  drift, and `@iwifunni-flag/core` is the only SDK built so far.
 - **OpenAPI export** — generate `/v1/openapi.json` from the existing Zod contracts. No
   OpenAPI document is served today.
 - **Rate limiting**

@@ -9,15 +9,12 @@ who may issue a key is `docs/authorization.md`; the wire shapes are
 
 ## The key is a runtime credential
 
-An SDK key is issued for **one environment** of one project, carries exactly the
-`flags:read` scope, and is of kind `server` (a server-side SDK) or `client` (one
-that ships to a browser). It can read that environment's configuration and
-nothing else:
+A server SDK key is issued for **one environment** of one project and requires `flags:read`. It may additionally carry `events:write` for opt-in analytics. Only `server` keys can download a snapshot. Client keys receive evaluated values through `POST /v1/sdk/evaluate`. Full targeting data must never be shipped to a browser.
 
 - Management routes (`/v1/projects/**`) mount the session middleware only, so an
   SDK key is not a credential they accept at all.
 - `POST /v1/evaluate` still requires a session; it is the dashboard's debugger.
-- The SDK surface (`/v1/sdk/config`) accepts only a key, and only of an SDK kind
+- The SDK surface (`/v1/sdk/config`) accepts only a key, and only of kind `server`
   with the read scope.
 
 That is the whole enforcement: there is no management handler that has to
@@ -25,9 +22,9 @@ remember to check a scope for an SDK key to be harmless there.
 
 | Kind | Issued for | Used by |
 | --- | --- | --- |
-| `management` | the dashboard | `api_keys` CRUD, the debugger |
-| `server` | one environment | Node, Python, Go, Java, Ruby, PHP, .NET |
-| `client` | one environment | React (browser) |
+| `management` | reserved | Not accepted by session-only management routes or the SDK endpoint |
+| `server` | one environment | Node.js; additional language SDKs are not released |
+| `client` | one environment | Evaluated values only; never configuration snapshots |
 
 A server or client key requires an environment and the `flags:read` scope;
 issuing one without either is a `400`. A management key presented to the SDK
@@ -147,7 +144,7 @@ close(): void
 
 | Language | Package | Status |
 | --- | --- | --- |
-| Node | `@iwifunni/node` (`packages/sdk-node`) | built, not published |
+| Node | `@iwifunni-flag/core` (`packages/sdk-node`) | built, not published |
 | React | `@iwifunni/react` | planned |
 | Python | `iwifunni` | planned |
 | Go | `github.com/iwifunni/iwifunni-go` | planned |
@@ -157,7 +154,7 @@ close(): void
 | .NET | `Iwifunni` | planned |
 
 The TypeScript engine in `packages/engine` is the reference implementation and
-the Node SDK uses it directly. `@iwifunni/node` is `private` and consumed from the
+the Node SDK uses it directly. `@iwifunni-flag/core` is `private` and consumed from the
 workspace: it is not on npm yet, so the install snippet is aspirational until it
 is published. Every other language re-implements it and is held
 to the same corpus.
@@ -172,7 +169,7 @@ the algorithm cannot silently drift from the other implementations; each SDK's
 test suite reads the same file.
 
 `pnpm check` covers the TypeScript workspaces only (`@iwifunni/engine`,
-`@iwifunni/node`, `apps/api`, `apps/web`). The other languages run their own test
+`@iwifunni-flag/core`, `apps/api`, `apps/web`). The other languages run their own test
 command, documented in their directory, and their conformance test is what keeps
 them honest.
 
@@ -188,3 +185,5 @@ them honest.
   snapshot adapter (`evaluateSnapshot`, `servedValue`, `toSubject`).
 - `packages/sdk-node/` — the Node SDK.
 - `sdks/fixtures/conformance.json` — the corpus every SDK is tested against.
+
+Snapshots are assembled in a read-only repeatable-read transaction so one response cannot mix configuration from different commits.

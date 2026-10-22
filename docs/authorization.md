@@ -89,12 +89,7 @@ The minimum role is the argument each call site passes to the gate.
 
 Environment editing covers `create`, `update`, `updateSettings`, `archive` and `unarchive`, all at `"admin"`.
 
-Some operations never call the gate because they are workspace-scoped by design. They need
-a session with a workspace, and every query is scoped by that workspace's id:
-`GET /v1/projects`, the workspace-wide flag and audit-log lists, and `POST /v1/evaluate`,
-which resolves inside the session's workspace and still requires a session rather than an
-API key (`docs/architecture.md §9`). Creating a project is also ungated: the creator becomes
-the project's explicit `owner` in the same transaction.
+Workspace-wide project, flag, audit-log lists and evaluation filter by the caller's current project memberships. Workspace owners and admins retain visibility across the workspace. A member without project access receives no project data from these surfaces, and evaluation returns `flag_not_found`. Creating a project makes the creator its explicit owner in the same transaction.
 
 ## Enforcement mechanics
 

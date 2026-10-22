@@ -15,7 +15,7 @@ The API test suite runs on vitest against a real PostgreSQL database. Every test
 
 `vitest run [filters...]` treats positional arguments as file-path filters; `-t` / `--testNamePattern` selects by full test name, describe block included.
 
-`apps/api/package.json` defines `test` as `vitest run`. The root `test` script is `pnpm --recursive test`, and `apps/api` is the only workspace that defines a `test` script — `apps/web` and `packages/contracts` do not — so `pnpm test` runs the API suite. `pnpm check` runs `typecheck`, `lint` and `test` across every workspace.
+`apps/api/package.json` defines `test` as `vitest run`. The root `test` script is `pnpm --recursive test`, and The API, dashboard, engine and Node SDK have test suites. `pnpm check` runs `typecheck`, `lint` and `test` across every workspace.
 
 ## Where tests live
 
@@ -52,8 +52,8 @@ Isolation is by truncation, not by rolled-back transactions. `harness.ts` gives 
 `resetTestDatabase()`, called once per file from `beforeAll`:
 
 1. connects to the admin database and runs `create database "<name>"` when `pg_database` holds no such row;
-2. connects to the test database and runs `drop schema if exists public cascade; create schema public;`;
-3. applies the schema with `pushSchema` from `drizzle-kit/api`, built from `src/db/schema/index.ts`.
+2. connects to the test database and runs `drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public;`;
+3. applies the committed SQL in `apps/api/drizzle` with the Drizzle migrator.
 
 Step 3 pushes from the schema modules rather than replaying `.sql` files. The project is used with `drizzle-kit push` and the repository has no `apps/api/drizzle` migration directory, so the schema modules are the only description of the database that exists; deriving the test schema from the same place as the development one means the two cannot disagree.
 
@@ -153,3 +153,5 @@ The suite applies the rule in both directions. `harness.test.ts` asserts that th
 - `apps/api/package.json` and the root `package.json` — the `test` and `check` scripts.
 - `docker-compose.yml` — the PostgreSQL instance the default URLs point at.
 - `.agents/skills/api/skill.md` — the Tests and Final Verification rules.
+
+API tests use a fake email transport. Verification codes remain encrypted and are read through the server-only auth API; tests do not call Brevo.

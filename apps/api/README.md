@@ -75,7 +75,7 @@ From the repository root:
 | `pnpm --filter api check`         | `typecheck` + `lint` + `test` for this workspace                                             |
 | `pnpm --filter api db:generate`   | Generate SQL from the schema barrel into `apps/api/drizzle`                                  |
 | `pnpm --filter api db:push`       | Apply the schema straight to a database — local only                                         |
-| `pnpm --filter api db:migrate`    | Apply committed migrations; none are committed, so it has nothing to replay                  |
+| `pnpm --filter api db:migrate`    | Apply committed migrations to a fresh or correctly baselined database                  |
 | `pnpm --filter api auth:generate` | Run Better Auth's CLI to diff its expected tables against the hand-written ones              |
 
 Most have a root alias that reaches this workspace — `pnpm dev:api`,

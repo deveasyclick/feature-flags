@@ -38,7 +38,7 @@ default `DATABASE_URL`.
 ## Coming from the Dariise name
 
 The project was renamed from Dariise to iwifunni. Everything in a checkout moved with it — the
-package scope (`@iwifunni/contracts`, `@iwifunni/engine`, `@iwifunni/node`), the databases, the
+package scope (`@iwifunni/contracts`, `@iwifunni/engine`, `@iwifunni-flag/core`), the databases, the
 environment variables and the copy — but a database that already exists and a dashboard whose
 browser cookies are already set are outside the checkout, so each needs one deliberate step.
 
@@ -135,10 +135,7 @@ Only `NEXT_PUBLIC_`-prefixed variables reach the browser; `API_INTERNAL_URL` is 
 - `pnpm --filter api auth:generate` writes `src/db/auth-schema.generated.ts` (gitignored) from
   `src/modules/auth/auth.cli.ts`, diffing Better Auth's expected tables against the hand-written ones.
 
-Today `apps/api/drizzle` does not exist and no generated SQL is committed: the schema is applied with
-`drizzle-kit push`, not replayed migrations ([docs/testing.md](testing.md)). `pnpm db:migrate`
-therefore exits non-zero — it has no migration directory to apply — and `pnpm db:push` is the command
-that actually builds the schema.
+The baseline SQL is committed in `apps/api/drizzle`. Fresh databases and integration tests replay these migrations. Existing databases created with schema push need a reviewed baseline adoption procedure and a verified backup first; see `docs/platform-remediation.md`.
 
 ## Commands
 
@@ -219,7 +216,7 @@ recorded in `apps/api/.env.example`: keep `instances × DATABASE_POOL_MAX` below
 - **Exists** — the Compose stack; committed `.env.example` templates; startup-validated API
   configuration; the web env loader; `/healthz` and `/readyz`; graceful shutdown; the command surface.
 - **Partial** — Redis is configurable but off the critical path (`/readyz` reports `not_configured`);
-  no migration directory is committed, so the schema is applied with `drizzle-kit push`; `pino` is
+  baseline migrations are committed and replayed by the test harness; `pino` is
   installed but unused; `packages/contracts` has only `typecheck` and `apps/web` no test script.
 - **Not built** — no metrics, billing, segment-membership, preferences, notifications or
   project-archive endpoints ([docs/architecture.md](architecture.md) §9).

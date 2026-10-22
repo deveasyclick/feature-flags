@@ -18,7 +18,7 @@ created unprotected, so protection is always an explicit choice.
 Every direct publish into a protected environment is refused by `FlagsService.assertPublishable`.
 The three environment-scoped writes — the configuration publish, the rules and the targets,
 all under `/v1/projects/:projectKey/flags/:flagKey/environments/:environmentKey` — check
-`scope.environment`. Reads, flag identity edits and flag-level variation edits are not gated.
+`scope.environment`. Reads and flag identity edits are not gated. Shared variation values and flag archive/restore operations are blocked while an active environment in the project is protected. Segment condition changes are blocked when a protected environment references that segment. Create a new variation or segment, then approve its selection through an environment change request.
 
 The refusal is `ApiError.approvalRequired(environment.key)` — HTTP 409, code `approval_required`,
 with the environment key as the extra detail:

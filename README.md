@@ -345,7 +345,7 @@ Run from the repository root. Most commands fan out across the workspaces; the
 | `pnpm check`      | `typecheck` + `lint` + `test` — the gate a change must pass         |
 | `pnpm db:generate`| Generate a Drizzle migration from the schema barrel                 |
 | `pnpm db:push`    | Push the schema straight to a database (local use only)             |
-| `pnpm db:migrate` | Apply committed migrations — none are committed yet, so this fails today |
+| `pnpm db:migrate` | Apply committed migrations to a database |
 
 Any of these can be scoped to one workspace with `pnpm --filter <web\|api> <script>`.
 
@@ -437,9 +437,9 @@ in the `Status` section of each [document](#documentation); this is what remains
 - [ ] JavaScript/TypeScript SDK
 - [ ] Python SDK
 - [ ] Go SDK
-- [ ] Local configuration caching and offline evaluation
-- [ ] Fallback values and safe defaults
-- [ ] Configuration polling
+- [x] Node.js local configuration caching and offline evaluation
+- [x] Node.js fallback values and safe defaults
+- [x] Node.js configuration polling
 - [ ] Real-time updates
 
 ### Caching and scale
