@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SegmentArchive } from "@/components/app/segments/segment-archive";
+import { SegmentConditionEditor } from "@/components/app/segments/segment-condition-editor";
 import { SegmentDetailHeader } from "@/components/app/segments/segment-headers";
 import {
   loadSegment,
@@ -49,6 +50,7 @@ export default async function SegmentDefinitionPage(
   return (
     <>
       <SegmentDetailHeader
+        projectKey={project.key}
         segmentKey={segment.key}
         name={segment.name}
         description={segment.description}
@@ -59,6 +61,7 @@ export default async function SegmentDefinitionPage(
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.62fr)]">
         <div className="space-y-4">
           <SegmentRuleTable conditions={segment.conditions} />
+          <SegmentConditionEditor key={segment.updatedAt} projectKey={project.key} segmentKey={segment.key} conditions={segment.conditions} archived={archived} />
           <SegmentUsedByFlags flags={flags} />
         </div>
 

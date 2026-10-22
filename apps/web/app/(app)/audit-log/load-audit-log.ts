@@ -85,11 +85,11 @@ function describeChanges(changes: unknown): AuditChangeField[] {
   );
 }
 
-export async function loadAuditLog(now: Date): Promise<AuditLogViewProps> {
+export async function loadAuditLog(now: Date, cursor?: string): Promise<AuditLogViewProps> {
   const scope = await getScope();
 
   const [page, environmentRefs] = await Promise.all([
-    api.audit.listForWorkspace({ limit: MAX_PAGE_SIZE }),
+    api.audit.listForWorkspace({ limit: MAX_PAGE_SIZE, cursor }),
     listWorkspaceEnvironments(
       scope.projects.map((project) => project.key),
       scope.project?.key ?? null,
@@ -148,5 +148,6 @@ export async function loadAuditLog(now: Date): Promise<AuditLogViewProps> {
     actors,
     totalEvents: events.length,
     hasMore: page.nextCursor !== null,
+    nextCursor: page.nextCursor,
   };
 }

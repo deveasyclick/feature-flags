@@ -36,6 +36,7 @@ export default async function SegmentMembersPage(
   return (
     <>
       <SegmentDetailHeader
+        projectKey={project.key}
         segmentKey={segment.key}
         name={segment.name}
         description={segment.description}

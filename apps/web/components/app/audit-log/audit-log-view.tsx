@@ -14,6 +14,8 @@ import {
   type AuditLogViewProps,
 } from "@/components/app/audit-log/audit-log-types";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { auditCsv } from "./audit-csv";
 import {
   Select,
   SelectContent,
@@ -94,10 +96,20 @@ export function AuditLogView({
 
   const totalLabel = `${formatInteger(totalEvents)}${hasMore ? "+" : ""}`;
 
+  function exportVisible() {
+    const url = URL.createObjectURL(new Blob(["\uFEFF", auditCsv(visible)], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "flags-audit-log.csv";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return (
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.45fr)]">
       <section className="bg-card rounded-lg border">
         <div className="flex flex-col gap-2 border-b p-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <Button variant="outline" size="sm" onClick={exportVisible} disabled={!visible.length}>Export visible CSV</Button>
           <div className="relative w-full sm:max-w-xs">
             <SearchIcon
               aria-hidden="true"

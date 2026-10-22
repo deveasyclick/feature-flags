@@ -2,9 +2,9 @@ import Link from "next/link";
 import {
   ChevronLeftIcon,
   MoreHorizontalIcon,
-  PencilIcon,
   UsersRoundIcon,
 } from "lucide-react";
+import { EditResourceDialog } from "@/components/app/edit-resource-dialog";
 import { cn } from "cn";
 import { SegmentGlyph } from "@/components/app/segments/segment-glyph";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,7 @@ export function CreateSegmentHeader({
 }
 
 interface SegmentDetailHeaderProps {
+  readonly projectKey: string;
   readonly segmentKey: string;
   readonly name: string;
   readonly description: string | null;
@@ -75,6 +76,7 @@ interface SegmentDetailHeaderProps {
 
 /** Identity and status strip above the segment detail tabs. */
 export function SegmentDetailHeader({
+  projectKey,
   segmentKey,
   name,
   description,
@@ -123,16 +125,7 @@ export function SegmentDetailHeader({
             />
             {archived ? "Archived" : "Active"}
           </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Edit — coming soon"
-            className="gap-1.5 text-[11px]"
-          >
-            <PencilIcon aria-hidden="true" className="size-3.5" />
-            Edit
-          </Button>
+          <EditResourceDialog kind="segment" projectKey={projectKey} resourceKey={segmentKey} name={name} description={description} />
           <Button
             variant="outline"
             size="icon-sm"

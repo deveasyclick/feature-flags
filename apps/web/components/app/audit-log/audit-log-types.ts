@@ -56,6 +56,7 @@ export interface AuditLogViewProps {
   /** Events on the loaded page; the API has more when `hasMore`. */
   totalEvents: number;
   hasMore: boolean;
+  nextCursor: string | null;
 }
 
 /**

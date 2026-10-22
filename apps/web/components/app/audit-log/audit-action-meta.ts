@@ -50,6 +50,10 @@ export const auditActionMeta: Record<AuditAction, AuditActionMeta> = {
     verb: "updated project",
     targetLabel: "Project",
   },
+  "project.archived": { icon: ArchiveIcon, tone: "bg-muted text-slate-ink", verb: "archived project", targetLabel: "Project" },
+  "project.restored": { icon: ArchiveRestoreIcon, tone: "bg-ok-ink/10 text-ok-ink", verb: "restored project", targetLabel: "Project" },
+  "project.duplicated": { icon: FolderPlusIcon, tone: "bg-primary-ink/10 text-primary-ink", verb: "duplicated project", targetLabel: "Project" },
+  "project.transferred": { icon: FolderCogIcon, tone: "bg-purple-ink/10 text-purple-ink", verb: "transferred project", targetLabel: "Project" },
   "project.deleted": {
     icon: FolderXIcon,
     tone: "bg-danger-ink/10 text-danger-ink",
@@ -110,6 +114,20 @@ export const auditActionMeta: Record<AuditAction, AuditActionMeta> = {
     verb: "updated",
     targetLabel: "Flag",
   },
+  "flag.change_scheduled": {
+    icon: SlidersHorizontalIcon,
+    tone: "bg-purple-ink/10 text-purple-ink",
+    verb: "scheduled a change to",
+    targetLabel: "Flag",
+  },
+  "flag.schedule_cancelled": {
+    icon: CircleXIcon,
+    tone: "bg-muted text-slate-ink",
+    verb: "cancelled a schedule for",
+    targetLabel: "Flag",
+  },
+  "flag.schedule_failed": { icon: CircleXIcon, tone: "bg-danger-ink/10 text-danger-ink", verb: "could not apply a scheduled change to", targetLabel: "Flag" },
+  "flag.automatically_rolled_back": { icon: ArchiveRestoreIcon, tone: "bg-warn-ink/10 text-warn-ink", verb: "automatically restored", targetLabel: "Flag" },
   "flag.enabled": {
     icon: ToggleRightIcon,
     tone: "bg-ok-ink/10 text-ok-ink",

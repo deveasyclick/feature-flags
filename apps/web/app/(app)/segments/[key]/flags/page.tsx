@@ -41,6 +41,7 @@ export default async function SegmentFlagsPage(
   return (
     <>
       <SegmentDetailHeader
+        projectKey={project.key}
         segmentKey={segment.key}
         name={segment.name}
         description={segment.description}
