@@ -1,25 +1,14 @@
-import { GitCompareArrowsIcon } from "lucide-react";
 import type { FlagVersion } from "@iwifunni/contracts";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FlagVersionActions } from "./flag-version-actions";
+import { FlagSchedules } from "./flag-schedules";
+import { FlagRollbackControls } from "./flag-rollback-controls";
 import { formatRelativeTime } from "@/lib/format";
 
-/**
- * History tab.
- *
- * Entirely read-only, so it stays a Server Component — no client boundary is
- * needed for a timeline and two selects that are not yet wired to anything.
- */
 export function FlagHistory({
   flagKey,
+  projectKey,
+  environmentKey,
   versions,
   environmentName,
   variationCount,
@@ -27,6 +16,8 @@ export function FlagHistory({
   now,
 }: {
   readonly flagKey: string;
+  readonly projectKey: string;
+  readonly environmentKey: string;
   readonly versions: FlagVersion[];
   readonly environmentName: string;
   readonly variationCount: number;
@@ -34,7 +25,6 @@ export function FlagHistory({
   readonly now: Date;
 }) {
   const current = versions[0];
-  const previous = versions[1];
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.72fr)]">
@@ -131,73 +121,9 @@ export function FlagHistory({
           )}
         </section>
 
-        <section className="bg-card rounded-lg border p-4">
-          <h2 className="text-[13px] font-medium">Compare versions</h2>
-          <p className="text-muted-foreground mt-1 text-[11px]">
-            Highlight what changed between two versions.
-          </p>
-
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="compare-from">From</Label>
-              <Select
-                defaultValue={String((previous ?? current)?.version ?? "")}
-              >
-                <SelectTrigger
-                  id="compare-from"
-                  className="h-8 w-full font-mono text-[12px]"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {versions.map((version) => (
-                    <SelectItem
-                      key={version.version}
-                      value={String(version.version)}
-                    >
-                      v{version.version}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="compare-to">To</Label>
-              <Select defaultValue={String(current?.version ?? "")}>
-                <SelectTrigger
-                  id="compare-to"
-                  className="h-8 w-full font-mono text-[12px]"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {versions.map((version) => (
-                    <SelectItem
-                      key={version.version}
-                      value={String(version.version)}
-                    >
-                      v{version.version}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Diffing — coming soon"
-            className="mt-3 w-full gap-1.5 text-[11px]"
-          >
-            <GitCompareArrowsIcon aria-hidden="true" className="size-3.5" />
-            {previous && current
-              ? `View diff v${previous.version} → v${current.version}`
-              : "View diff"}
-          </Button>
-        </section>
+        <FlagVersionActions projectKey={projectKey} flagKey={flagKey} environmentKey={environmentKey} versions={versions} />
+        <FlagSchedules projectKey={projectKey} flagKey={flagKey} environmentKey={environmentKey} currentVersion={current?.version} />
+        <FlagRollbackControls projectKey={projectKey} flagKey={flagKey} environmentKey={environmentKey} versions={versions} />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import type { FlagVariationValue } from "@iwifunni/contracts";
 import { ArchiveFlagAction } from "@/components/app/flags/archive-flag-dialog";
 import { FlagApprovalPanel } from "@/components/app/flags/flag-approval";
 import { FlagConfiguration } from "@/components/app/flags/flag-configuration";
+import { FlagClientVisibility } from "@/components/app/flags/flag-client-visibility";
 import {
   DangerZoneCard,
   FlagFallback,
@@ -193,6 +194,8 @@ export default async function FlagDetailPage(props: FlagPageProps) {
         {header}
         {tabs}
         <FlagHistory
+          projectKey={projectKey}
+          environmentKey={environmentKey}
           flagKey={flag.key}
           versions={versions}
           environmentName={environmentName}
@@ -240,6 +243,7 @@ export default async function FlagDetailPage(props: FlagPageProps) {
         metadata={
           <>
             <FlagMetadata flag={flag} now={now} />
+            <FlagClientVisibility projectKey={projectKey} flagKey={flag.key} initialVisible={(await flagsApi.clientVisibility(projectKey, flag.key)).clientVisible} />
             <FlagFallback
               flagKey={flag.key}
               type={flag.type}
