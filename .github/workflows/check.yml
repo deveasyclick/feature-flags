@@ -1,0 +1,46 @@
+name: Validate
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5442:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5442/iwifunni_test
+      TEST_ADMIN_DATABASE_URL: postgresql://postgres:postgres@localhost:5442/postgres
+      BETTER_AUTH_SECRET: ci-test-secret-with-at-least-thirty-two-characters
+      BETTER_AUTH_URL: http://localhost:4000
+      BREVO_API_KEY: xkeysib-test-key
+      EMAIL_FROM: no-reply@iwifunni.test
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      API_INTERNAL_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm build
+        env:
+          NODE_ENV: production
+      - run: pnpm --filter @iwifunni-flag/core test:package
+      - run: pnpm audit --prod --audit-level high
