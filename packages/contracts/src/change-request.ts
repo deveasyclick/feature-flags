@@ -5,6 +5,7 @@ import {
   replaceIndividualTargetsSchema,
   replaceTargetingRulesSchema,
   updateFlagConfigSchema,
+  flagVersionSchema,
 } from "#flag";
 import { paginatedSchema, paginationQuerySchema } from "#pagination";
 import { resourceKeySchema } from "#slug";
@@ -41,6 +42,38 @@ export const flagChangePayloadSchema = z.object({
 
 export type FlagChangePayload = z.infer<typeof flagChangePayloadSchema>;
 
+export const flagReleaseStateSchema = z.object({
+  config: updateFlagConfigSchema,
+  rules: replaceTargetingRulesSchema,
+  targets: replaceIndividualTargetsSchema,
+});
+
+export type FlagReleaseState = z.infer<typeof flagReleaseStateSchema>;
+
+export const flagVersionDetailSchema = flagVersionSchema.extend({
+  state: flagReleaseStateSchema.nullable(),
+});
+
+export type FlagVersionDetail = z.infer<typeof flagVersionDetailSchema>;
+
+export const flagVersionNumberSchema = z.coerce.number().int().positive().max(2147483647);
+
+export const scheduledFlagChangeSchema = z.object({
+  id: z.string().uuid(),
+  executeAt: z.iso.datetime({ offset: true }),
+  status: z.enum(["pending", "completed", "failed", "cancelled"]),
+  baseVersion: z.number().int().positive(),
+  payload: flagChangePayloadSchema,
+  createdBy: z.string(),
+  createdAt: z.string(),
+  finishedAt: z.string().nullable(),
+  failureReason: z.string().nullable(),
+});
+
+export type ScheduledFlagChange = z.infer<typeof scheduledFlagChangeSchema>;
+
+export const scheduledFlagChangeIdSchema = z.string().uuid();
+
 export function payloadProposesChange(payload: FlagChangePayload): boolean {
   return (
     payload.config !== undefined ||
@@ -58,6 +91,29 @@ export const proposeFlagChangeSchema = flagChangePayloadSchema.check((ctx) => {
     });
   }
 });
+
+export const scheduleFlagChangeSchema = z.object({
+  executeAt: z.iso.datetime({ offset: true }),
+  baseVersion: flagVersionNumberSchema,
+  payload: proposeFlagChangeSchema,
+});
+
+export type ScheduleFlagChangeInput = z.infer<typeof scheduleFlagChangeSchema>;
+
+export const armFlagRollbackSchema = z.object({
+  currentVersion: flagVersionNumberSchema,
+  targetVersion: flagVersionNumberSchema,
+  errorPercentage: z.number().min(1).max(100),
+  minimumSamples: z.number().int().min(10).max(100000),
+  windowMinutes: z.number().int().min(1).max(60),
+  expiresAt: z.iso.datetime({ offset: true }).optional(),
+});
+export type ArmFlagRollbackInput = z.infer<typeof armFlagRollbackSchema>;
+export const flagRollbackPolicySchema = armFlagRollbackSchema.extend({
+  id: z.string().uuid(), status: z.enum(["armed", "triggered", "cancelled", "blocked", "expired"]),
+  armedAt: z.string(), expiresAt: z.string(), finishedAt: z.string().nullable(), reason: z.string().nullable(),
+});
+export type FlagRollbackPolicy = z.infer<typeof flagRollbackPolicySchema>;
 
 export const flagChangeRequestSchema = z.object({
   id: z.string(),

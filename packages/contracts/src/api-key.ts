@@ -6,6 +6,7 @@ import { booleanQueryParamSchema } from "#query";
 
 export const API_KEY_SCOPES = [
   "flags:read",
+  "events:write",
   "flags:write",
   "segments:read",
   "webhooks:manage",
@@ -35,8 +36,8 @@ export const sdkApiKeyKindSchema = z.enum(SDK_API_KEY_KINDS);
 
 export type SdkApiKeyKind = z.infer<typeof sdkApiKeyKindSchema>;
 
-/** The only scope an SDK key carries; it evaluates and writes nothing. */
 export const SDK_API_KEY_SCOPES: ApiKeyScope[] = ["flags:read"];
+export const SDK_ALLOWED_SCOPES: ApiKeyScope[] = ["flags:read", "events:write"];
 
 /**
  * What a management key carries.
@@ -88,14 +89,12 @@ export const createApiKeySchema = z.object({
   environmentKey: environmentKeySchema.nullable().optional(),
   /**
    * Defaults to `management`, the dashboard's credential. `server` and `client`
-   * are runtime SDK keys: they require an environment and carry only the
-   * read-only scope.
+   * are runtime SDK keys: they require an environment and flags:read.
    */
   kind: apiKeyKindSchema.optional(),
   /**
    * Omissible: the server assigns the set the kind implies — every management
-   * scope, or the single read scope an SDK key carries. Send it only to narrow
-   * a management key deliberately.
+   * scope, or flags:read for an SDK key. SDK keys may add events:write.
    */
   scopes: z
     .array(apiKeyScopeSchema)
@@ -135,6 +134,7 @@ export const createdApiKeySchema = apiKeySchema.extend({
 export type CreatedApiKey = z.infer<typeof createdApiKeySchema>;
 
 export const apiKeyListQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(200).optional(),
   includeRevoked: booleanQueryParamSchema.optional(),
   /**
    * Narrows the list to one environment. Keys issued without an environment are

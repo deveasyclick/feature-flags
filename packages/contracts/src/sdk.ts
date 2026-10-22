@@ -1,6 +1,25 @@
 import { z } from "zod";
 
 import { flagStatusSchema, flagTypeSchema } from "#flag";
+import { evaluationUserContextSchema } from "#evaluation";
+
+export const clientFlagVisibilitySchema = z.object({ clientVisible: z.boolean() });
+export type ClientFlagVisibility = z.infer<typeof clientFlagVisibilitySchema>;
+
+export const clientEvaluateRequestSchema = z.object({
+  user: evaluationUserContextSchema.check((ctx) => {
+    if (Object.keys(ctx.value).length > 100 || Object.entries(ctx.value).some(([key, value]) => key.length > 128 || (typeof value === "string" && value.length > 1024))) ctx.issues.push({ code: "custom", input: ctx.value, message: "Use at most 100 attributes with keys up to 128 and string values up to 1024 characters." });
+  }),
+  flags: z.array(z.string().min(1).max(128)).min(1).max(100),
+});
+export type ClientEvaluateRequest = z.infer<typeof clientEvaluateRequestSchema>;
+
+export const clientEvaluateResponseSchema = z.object({
+  flags: z.record(z.string(), z.object({ value: z.unknown(), enabled: z.boolean() })),
+});
+export type ClientEvaluateResponse = z.infer<typeof clientEvaluateResponseSchema>;
+
+export const sdkStreamVersionSchema = z.object({ version: z.string().min(1).max(64) });
 
 /**
  * The SDK's configuration snapshot.
@@ -52,6 +71,7 @@ export const sdkVariationSchema = z.object({
 export type SdkVariation = z.infer<typeof sdkVariationSchema>;
 
 export const sdkFlagSchema = z.object({
+  version: z.number().int().positive().optional(),
   key: z.string(),
   type: flagTypeSchema,
   status: flagStatusSchema,

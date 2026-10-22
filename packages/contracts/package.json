@@ -10,6 +10,8 @@
     ".": "./src/index.ts"
   },
   "imports": {
+    "#notification": "./src/notification.ts",
+    "#analytics": "./src/analytics.ts",
     "#api-key": "./src/api-key.ts",
     "#audit-log": "./src/audit-log.ts",
     "#change-request": "./src/change-request.ts",

@@ -10,6 +10,7 @@ export const sessionUserSchema = z.object({
   email: emailSchema,
   image: z.string().nullable().optional(),
   emailVerified: z.boolean(),
+  twoFactorEnabled: z.boolean().optional(),
 });
 
 export type SessionUser = z.infer<typeof sessionUserSchema>;
@@ -26,6 +27,8 @@ export const meResponseSchema = z.object({
   workspace: workspaceSummarySchema.nullable(),
   /** False until onboarding step 3 completes. Meaningless without a workspace. */
   hasProject: z.boolean(),
+  mfaRequired: z.boolean().optional(),
+  mfaEnrollmentRequired: z.boolean().optional(),
   providers: enabledProvidersSchema,
 });
 

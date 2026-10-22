@@ -15,6 +15,8 @@ export * from "#project";
 export * from "#project-member";
 export * from "#query";
 export * from "#sdk";
+export * from "#analytics";
+export * from "#notification";
 export * from "#segment";
 export * from "#session";
 export * from "#slug";

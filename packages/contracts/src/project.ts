@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { booleanQueryParamSchema } from "#query";
 
 /**
  * `POST /v1/projects`.
@@ -39,6 +40,7 @@ export const projectSchema = z.object({
   ownerTeam: z.string().nullable(),
   defaultEnvironmentId: z.string().nullable(),
   environmentCount: z.number().int().nonnegative(),
+  archivedAt: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -63,6 +65,15 @@ export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 
 export const projectListQuerySchema = z.object({
   search: z.string().trim().optional(),
+  includeArchived: booleanQueryParamSchema.optional(),
 });
 
 export type ProjectListQuery = z.infer<typeof projectListQuerySchema>;
+
+export const duplicateProjectSchema = createProjectSchema;
+export type DuplicateProjectInput = z.infer<typeof duplicateProjectSchema>;
+
+export const transferProjectSchema = z.object({
+  destinationWorkspaceSlug: z.string().trim().min(1).max(128),
+});
+export type TransferProjectInput = z.infer<typeof transferProjectSchema>;
