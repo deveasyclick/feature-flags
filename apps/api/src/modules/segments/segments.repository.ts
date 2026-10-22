@@ -36,6 +36,27 @@ import type {
 } from "./segments.types.js";
 
 export class SegmentsRepository {
+  async findProtectedReference(
+    projectId: string,
+    segmentKey: string,
+  ): Promise<string | null> {
+    const rows = await db
+      .select({ key: environment.key })
+      .from(targetingRule)
+      .innerJoin(flag, eq(flag.id, targetingRule.flagId))
+      .innerJoin(environment, eq(environment.id, targetingRule.environmentId))
+      .where(
+        and(
+          eq(flag.projectId, projectId),
+          eq(environment.isProtected, true),
+          isNull(environment.archivedAt),
+          sql`${targetingRule.segmentKeys} @> array[${segmentKey}]::text[]`,
+        ),
+      )
+      .limit(1);
+    return rows[0]?.key ?? null;
+  }
+
   /** Fetches limit + 1 rows so the caller can tell whether another page exists. */
   async list(
     projectId: string,
@@ -49,7 +70,10 @@ export class SegmentsRepository {
 
     if (filter.search) {
       const pattern = `%${filter.search}%`;
-      const match = or(ilike(segment.key, pattern), ilike(segment.name, pattern));
+      const match = or(
+        ilike(segment.key, pattern),
+        ilike(segment.name, pattern),
+      );
 
       if (match) conditions.push(match);
     }
@@ -66,10 +90,7 @@ export class SegmentsRepository {
       .limit(filter.limit + 1);
   }
 
-  async findByKey(
-    projectId: string,
-    key: string,
-  ): Promise<SegmentRow | null> {
+  async findByKey(projectId: string, key: string): Promise<SegmentRow | null> {
     const rows = await db
       .select()
       .from(segment)

@@ -2,6 +2,8 @@ import {
   createProjectSchema,
   projectListQuerySchema,
   updateProjectSchema,
+  duplicateProjectSchema,
+  transferProjectSchema,
 } from "@iwifunni/contracts";
 import type { Context } from "hono";
 
@@ -14,6 +16,53 @@ import type { ProjectsActorContext } from "./projects.types.js";
 export class ProjectsController {
   constructor(private readonly service: ProjectsService) {}
 
+  async archive(c: Context<SessionEnv>): Promise<Response> {
+    await this.service.archive(
+      this.actor(await requireWorkspace(c)),
+      this.param(c, "projectKey"),
+    );
+    return c.body(null, 204);
+  }
+
+  async restore(c: Context<SessionEnv>): Promise<Response> {
+    return c.json(
+      await this.service.restore(
+        this.actor(await requireWorkspace(c)),
+        this.param(c, "projectKey"),
+      ),
+    );
+  }
+
+  async duplicate(c: Context<SessionEnv>): Promise<Response> {
+    const context = await requireWorkspace(c);
+    const parsed = duplicateProjectSchema.safeParse(await this.body(c));
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.duplicate(
+        this.actor(context),
+        this.param(c, "projectKey"),
+        parsed.data,
+      ),
+      201,
+    );
+  }
+
+  async transfer(c: Context<SessionEnv>): Promise<Response> {
+    const context = await requireWorkspace(c);
+    const parsed = transferProjectSchema.safeParse(await this.body(c));
+    if (!parsed.success)
+      throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
+    return c.json(
+      await this.service.transfer(
+        this.actor(context),
+        this.param(c, "projectKey"),
+        parsed.data,
+      ),
+      201,
+    );
+  }
+
   async list(c: Context<SessionEnv>): Promise<Response> {
     const context = await requireWorkspace(c);
     const parsed = projectListQuerySchema.safeParse(c.req.query());
@@ -22,7 +71,7 @@ export class ProjectsController {
       throw ApiError.badRequest(this.firstIssue(parsed.error.issues));
     }
 
-    return c.json(await this.service.list(context.workspace.id, parsed.data));
+    return c.json(await this.service.list(this.actor(context), parsed.data));
   }
 
   async get(c: Context<SessionEnv>): Promise<Response> {

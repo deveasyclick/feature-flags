@@ -5,6 +5,7 @@ export interface ProjectRef {
   id: string;
   key: string;
   name: string;
+  archivedAt?: Date | null;
 }
 
 export interface ProjectAccessGrant {
@@ -20,6 +21,7 @@ export interface RequireProjectAccessInput {
   /** The caller's workspace role, from the session. */
   workspaceRole: string;
   minimumRole: ProjectRole;
+  allowArchived?: boolean;
 }
 
 export const PROJECT_ROLE_RANK: Record<ProjectRole, number> = {

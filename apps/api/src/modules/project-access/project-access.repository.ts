@@ -1,10 +1,28 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db } from "../../db/client.js";
 import { project, projectMember } from "../../db/schema/index.js";
 import type { ProjectRef } from "./project-access.types.js";
 
 export class ProjectAccessRepository {
+  async visibleProjectIds(
+    organizationId: string,
+    userId: string,
+  ): Promise<string[]> {
+    const rows = await db
+      .select({ id: project.id })
+      .from(project)
+      .innerJoin(projectMember, eq(projectMember.projectId, project.id))
+      .where(
+        and(
+          eq(project.organizationId, organizationId),
+          eq(projectMember.userId, userId),
+          inArray(projectMember.role, ["owner", "admin", "engineer", "viewer"]),
+        ),
+      );
+    return rows.map((row) => row.id);
+  }
+
   /**
    * Runs outside a caller's transaction: the gate answers before the mutation
    * opens one, and the workspace scope is applied here rather than by a caller.
@@ -14,7 +32,12 @@ export class ProjectAccessRepository {
     key: string,
   ): Promise<ProjectRef | null> {
     const rows = await db
-      .select({ id: project.id, key: project.key, name: project.name })
+      .select({
+        id: project.id,
+        key: project.key,
+        name: project.name,
+        archivedAt: project.archivedAt,
+      })
       .from(project)
       .where(
         and(eq(project.organizationId, organizationId), eq(project.key, key)),

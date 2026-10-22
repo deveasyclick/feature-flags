@@ -21,13 +21,25 @@ import {
 export class ProjectAccessService {
   constructor(private readonly repository: ProjectAccessRepository) {}
 
+  async visibleProjectIds(context: {
+    organizationId: string;
+    userId: string;
+    workspaceRole: string;
+  }): Promise<string[] | null> {
+    if (this.implicitRole(context.workspaceRole)) return null;
+    return this.repository.visibleProjectIds(
+      context.organizationId,
+      context.userId,
+    );
+  }
+
   async require(input: RequireProjectAccessInput): Promise<ProjectAccessGrant> {
     const project = await this.repository.findProjectByKey(
       input.organizationId,
       input.projectKey,
     );
 
-    if (!project) {
+    if (!project || (project.archivedAt && !input.allowArchived)) {
       throw ApiError.notFound("Project not found.");
     }
 

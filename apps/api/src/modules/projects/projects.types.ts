@@ -1,6 +1,12 @@
 import type { ProjectSummary } from "@iwifunni/contracts";
 
 import type { Transaction } from "../../shared/types/db.js";
+import type { MiddlewareHandler } from "hono";
+import type { ProjectsController } from "./projects.controller.js";
+export interface ProjectsRoutesDeps {
+  controller: ProjectsController;
+  sessionMiddleware: MiddlewareHandler;
+}
 
 export type ProjectRow = ProjectSummary;
 
@@ -28,6 +34,7 @@ export interface ProjectDetailRow {
   environmentCount: number;
   createdAt: Date;
   updatedAt: Date;
+  archivedAt: Date | null;
 }
 
 export interface UpdateProjectRecord {
@@ -36,6 +43,7 @@ export interface UpdateProjectRecord {
   color?: string | null;
   ownerTeam?: string | null;
   defaultEnvironmentId?: string | null;
+  archivedAt?: Date | null;
 }
 
 export interface ProjectsActorContext {

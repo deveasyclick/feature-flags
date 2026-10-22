@@ -137,6 +137,9 @@ export class SegmentsService {
 
     const row = await this.requireSegment(project.id, segmentKey);
 
+    if (input.rules)
+      await this.assertNoProtectedReferences(project.id, segmentKey);
+
     await db.transaction(async (tx) => {
       await this.repository.update(tx, row.id, {
         name: input.name,
@@ -177,6 +180,8 @@ export class SegmentsService {
     });
 
     const row = await this.requireSegment(project.id, segmentKey);
+
+    await this.assertNoProtectedReferences(project.id, segmentKey);
 
     return db.transaction(async (tx) => {
       const archivedAt = await this.repository.archive(tx, row.id);
@@ -221,10 +226,7 @@ export class SegmentsService {
    * module through an injected callback, after its own gate has already run, so
    * a targeting rule can only reference a real segment.
    */
-  async findUnknownKeys(
-    projectId: string,
-    keys: string[],
-  ): Promise<string[]> {
+  async findUnknownKeys(projectId: string, keys: string[]): Promise<string[]> {
     if (keys.length === 0) return [];
 
     const found = await this.repository.findManyByKeys(projectId, keys);
@@ -241,6 +243,21 @@ export class SegmentsService {
     const conditions = await this.repository.listConditions(row.id);
 
     return toSegmentDetail(row, conditions);
+  }
+
+  private async assertNoProtectedReferences(
+    projectId: string,
+    key: string,
+  ): Promise<void> {
+    const protectedEnvironment = await this.repository.findProtectedReference(
+      projectId,
+      key,
+    );
+    if (protectedEnvironment) {
+      throw ApiError.conflict(
+        `This segment is used by protected environment "${protectedEnvironment}". Create a new segment and approve a targeting change instead.`,
+      );
+    }
   }
 
   private async requireSegment(projectId: string, key: string) {

@@ -6,6 +6,7 @@ import {
   type Project,
   type ProjectListQuery,
   type UpdateProjectInput,
+  type TransferProjectInput,
 } from "@iwifunni/contracts";
 
 import { writeAuditLog } from "../../db/audit.js";
@@ -31,11 +32,185 @@ export class ProjectsService {
     private readonly projectAccess: ProjectAccessService,
   ) {}
 
+  async archive(
+    context: ProjectsActorContext,
+    projectKey: string,
+  ): Promise<void> {
+    const { project } = await this.projectAccess.require({
+      ...context,
+      projectKey,
+      minimumRole: "owner",
+    });
+    await db.transaction(async (tx) => {
+      await this.repository.archive(tx, context.organizationId, project.id);
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: project.id,
+        actor: context.userId,
+        actorName: context.userName,
+        action: "project.archived",
+        target: project.id,
+      });
+    });
+  }
+
+  async restore(
+    context: ProjectsActorContext,
+    projectKey: string,
+  ): Promise<Project> {
+    const { project } = await this.projectAccess.require({
+      ...context,
+      projectKey,
+      minimumRole: "owner",
+      allowArchived: true,
+    });
+    if (!project.archivedAt)
+      throw ApiError.conflict("The project is not archived.");
+    await db.transaction(async (tx) => {
+      await this.repository.update(tx, project.id, { archivedAt: null });
+      await writeAuditLog(tx, {
+        organizationId: context.organizationId,
+        projectId: project.id,
+        actor: context.userId,
+        actorName: context.userName,
+        action: "project.restored",
+        target: project.id,
+      });
+    });
+    return this.get(context, projectKey);
+  }
+
+  async duplicate(
+    context: ProjectsActorContext,
+    projectKey: string,
+    input: CreateProjectInput,
+  ): Promise<ProjectRow> {
+    const { project } = await this.projectAccess.require({
+      ...context,
+      projectKey,
+      minimumRole: "owner",
+    });
+    return db.transaction(
+      async (tx) => {
+        const created = await this.copyProject(
+          tx,
+          project.id,
+          context.organizationId,
+          input.name,
+          context,
+        );
+        await writeAuditLog(tx, {
+          organizationId: context.organizationId,
+          projectId: created.id,
+          actor: context.userId,
+          actorName: context.userName,
+          action: "project.duplicated",
+          target: created.id,
+          changes: { sourceProjectKey: project.key },
+        });
+        return created;
+      },
+      { isolationLevel: "repeatable read" },
+    );
+  }
+
+  async transfer(
+    context: ProjectsActorContext,
+    projectKey: string,
+    input: TransferProjectInput,
+  ): Promise<ProjectRow> {
+    if (context.workspaceRole !== "owner")
+      throw ApiError.forbidden(
+        "Only a workspace owner can transfer a project.",
+      );
+    const { project } = await this.projectAccess.require({
+      ...context,
+      projectKey,
+      minimumRole: "owner",
+    });
+    const destination = await this.repository.findOwnedDestination(
+      context.userId,
+      input.destinationWorkspaceSlug,
+    );
+    if (!destination)
+      throw ApiError.notFound("Destination workspace not found.");
+    if (destination.id === context.organizationId)
+      throw ApiError.badRequest("Choose a different workspace.");
+    return db.transaction(
+      async (tx) => {
+        const created = await this.copyProject(
+          tx,
+          project.id,
+          destination.id,
+          project.name,
+          context,
+        );
+        await this.repository.archive(tx, context.organizationId, project.id);
+        await writeAuditLog(tx, {
+          organizationId: context.organizationId,
+          projectId: project.id,
+          actor: context.userId,
+          actorName: context.userName,
+          action: "project.transferred",
+          target: project.id,
+          changes: {
+            destinationWorkspaceSlug: destination.slug,
+            destinationProjectKey: created.key,
+          },
+        });
+        await writeAuditLog(tx, {
+          organizationId: destination.id,
+          projectId: created.id,
+          actor: context.userId,
+          actorName: context.userName,
+          action: "project.transferred",
+          target: created.id,
+          changes: { sourceProjectKey: project.key },
+        });
+        return created;
+      },
+      { isolationLevel: "repeatable read" },
+    );
+  }
+
+  private async copyProject(
+    tx: Transaction,
+    sourceId: string,
+    destinationId: string,
+    name: string,
+    context: ProjectsActorContext,
+  ): Promise<ProjectRow> {
+    const key = await this.resolveKey(tx, destinationId, name);
+    const created = { id: randomUUID(), key, name };
+    await this.repository.insert(tx, {
+      ...created,
+      organizationId: destinationId,
+    });
+    await this.repository.insertOwner(tx, {
+      id: randomUUID(),
+      projectId: created.id,
+      userId: context.userId,
+    });
+    await this.repository.cloneConfiguration(
+      tx,
+      sourceId,
+      created.id,
+      context.userId,
+    );
+    return created;
+  }
+
   async list(
-    organizationId: string,
+    context: ProjectsActorContext,
     query: ProjectListQuery,
   ): Promise<Project[]> {
-    const rows = await this.repository.list(organizationId, query.search);
+    const ids = await this.projectAccess.visibleProjectIds(context);
+    const rows = await this.repository.list(
+      context.organizationId,
+      query.search,
+      ids,
+      query.includeArchived ?? false,
+    );
 
     return rows.map(toProject);
   }
@@ -48,6 +223,7 @@ export class ProjectsService {
       ...context,
       projectKey,
       minimumRole: "viewer",
+      allowArchived: true,
     });
 
     const row = await this.repository.findDetailByKey(

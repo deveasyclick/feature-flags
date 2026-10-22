@@ -12,6 +12,7 @@ export function toProject(row: ProjectDetailRow): Project {
     ownerTeam: row.ownerTeam,
     defaultEnvironmentId: row.defaultEnvironmentId,
     environmentCount: row.environmentCount,
+    archivedAt: row.archivedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

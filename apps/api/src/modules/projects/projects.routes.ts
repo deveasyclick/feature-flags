@@ -1,14 +1,8 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { Hono } from "hono";
 
 import type { SessionEnv } from "../auth/auth.types.js";
-import type { ProjectsController } from "./projects.controller.js";
+import type { ProjectsRoutesDeps } from "./projects.types.js";
 
-export interface ProjectsRoutesDeps {
-  controller: ProjectsController;
-  sessionMiddleware: MiddlewareHandler;
-}
-
-// Owns every path the projects module serves; `app.ts` owns construction and mounting.
 export function createProjectsRoutes({
   controller,
   sessionMiddleware,
@@ -17,11 +11,14 @@ export function createProjectsRoutes({
 
   routes.use("*", sessionMiddleware);
 
-  // Mounted at `/v1/projects` in `app.ts`; the router owns the paths below it.
   routes.get("/", (c) => controller.list(c));
   routes.post("/", (c) => controller.create(c));
   routes.get("/:projectKey", (c) => controller.get(c));
   routes.patch("/:projectKey", (c) => controller.update(c));
+  routes.post("/:projectKey/archive", (c) => controller.archive(c));
+  routes.post("/:projectKey/restore", (c) => controller.restore(c));
+  routes.post("/:projectKey/duplicate", (c) => controller.duplicate(c));
+  routes.post("/:projectKey/transfer", (c) => controller.transfer(c));
 
   return routes;
 }
