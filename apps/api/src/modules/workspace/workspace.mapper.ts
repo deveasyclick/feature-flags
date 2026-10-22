@@ -41,5 +41,11 @@ export function toWorkspaceProfile(
 export function toSecuritySettings(
   metadata: WorkspaceMetadata,
 ): WorkspaceSecuritySettings {
-  return { ...DEFAULT_SECURITY_SETTINGS, ...metadata.security };
+  return {
+    ...DEFAULT_SECURITY_SETTINGS,
+    twoFactorEnabled: metadata.security?.twoFactorEnabled === true,
+    sessionTimeout:
+      metadata.security?.sessionTimeout ??
+      DEFAULT_SECURITY_SETTINGS.sessionTimeout,
+  };
 }

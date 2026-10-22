@@ -24,7 +24,16 @@ export class AuthService {
 
     const workspace = await this.repository.findWorkspaceForUser(
       result.user.id,
+      result.session.activeOrganizationId,
     );
+    if (
+      workspace &&
+      Date.now() - result.session.createdAt.getTime() >=
+        workspace.sessionMaxAgeMs
+    ) {
+      await this.repository.revokeSession(result.session.id);
+      return null;
+    }
     const projectExists = workspace
       ? await this.projectExists(workspace.id)
       : false;
@@ -36,6 +45,7 @@ export class AuthService {
         email: result.user.email,
         image: result.user.image,
         emailVerified: result.user.emailVerified,
+        twoFactorEnabled: result.user.twoFactorEnabled ?? false,
       },
       session: {
         id: result.session.id,
@@ -43,7 +53,20 @@ export class AuthService {
       },
       workspace,
       hasProject: projectExists,
+      mfaRequired:
+        !!result.user.twoFactorEnabled && !result.session.twoFactorVerifiedAt,
+      mfaEnrollmentRequired:
+        !!workspace?.requireTwoFactor && !result.user.twoFactorEnabled,
     };
+  }
+
+  async verifySessionFactor(headers: Headers): Promise<void> {
+    const verified = await this.getSession({ headers });
+    if (verified?.user.twoFactorEnabled)
+      await this.repository.verifySessionFactor(
+        verified.session.id,
+        verified.user.id,
+      );
   }
 
   providersForDeployment(): Array<"github" | "google"> {
@@ -65,7 +88,7 @@ export class AuthService {
       body: {
         currentPassword: input.currentPassword,
         newPassword: input.newPassword,
-        revokeOtherSessions: false,
+        revokeOtherSessions: true,
       },
       headers,
     });

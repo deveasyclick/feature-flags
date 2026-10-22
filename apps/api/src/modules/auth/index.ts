@@ -1,4 +1,5 @@
-export { createAuthRoutes, type AuthRoutesDeps } from "./auth.routes.js";
+export { createAuthRoutes } from "./auth.routes.js";
+export type { AuthRoutesDeps } from "./auth.types.js";
 export { createAuthConfig, type Auth } from "./auth.config.js";
 export { AuthController } from "./auth.controller.js";
 export { AuthService } from "./auth.service.js";

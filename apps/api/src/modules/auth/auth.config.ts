@@ -2,6 +2,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import {
   emailOTP,
+  twoFactor as twoFactorPlugin,
   organization as organizationPlugin,
 } from "better-auth/plugins";
 import { VERIFICATION_CODE_LENGTH } from "@iwifunni/contracts";
@@ -15,6 +16,7 @@ import {
   session,
   user,
   verification,
+  twoFactor,
 } from "../../db/schema/index.js";
 import { env, isProduction } from "../../config/index.js";
 import {
@@ -72,6 +74,7 @@ export function createAuthConfig(emailService: EmailService) {
         organization,
         member,
         invitation,
+        twoFactor,
       },
       usePlural: false,
     }),
@@ -120,6 +123,9 @@ export function createAuthConfig(emailService: EmailService) {
     ...(Object.keys(socialProviders).length > 0 ? { socialProviders } : {}),
 
     session: {
+      additionalFields: {
+        twoFactorVerifiedAt: { type: "date", required: false, input: false },
+      },
       expiresIn: 60 * 60 * 24 * 7,
       updateAge: 60 * 60 * 24,
       // Deliberately off: the cached cookie would keep serving the old name and
@@ -153,6 +159,7 @@ export function createAuthConfig(emailService: EmailService) {
     },
 
     plugins: [
+      twoFactorPlugin({ issuer: "Iwifunni", allowPasswordless: true }),
       organizationPlugin(),
 
       /**

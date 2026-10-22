@@ -6,9 +6,16 @@ import type {
 } from "@iwifunni/contracts";
 
 import { ApiError } from "../../shared/http/errors.js";
-import { parseMetadata, toSecuritySettings, toWorkspaceProfile } from "./workspace.mapper.js";
+import {
+  parseMetadata,
+  toSecuritySettings,
+  toWorkspaceProfile,
+} from "./workspace.mapper.js";
 import type { WorkspaceRepository } from "./workspace.repository.js";
-import type { WorkspaceActorContext, WorkspaceMetadata } from "./workspace.types.js";
+import type {
+  WorkspaceActorContext,
+  WorkspaceMetadata,
+} from "./workspace.types.js";
 
 /** Workspace settings are owner/admin-only; every member may read them. */
 const MANAGING_ROLES = new Set(["owner", "admin"]);
@@ -16,9 +23,7 @@ const MANAGING_ROLES = new Set(["owner", "admin"]);
 export class WorkspaceService {
   constructor(private readonly repository: WorkspaceRepository) {}
 
-  async getProfile(
-    context: WorkspaceActorContext,
-  ): Promise<WorkspaceProfile> {
+  async getProfile(context: WorkspaceActorContext): Promise<WorkspaceProfile> {
     const row = await this.requireWorkspace(context.organizationId);
 
     return toWorkspaceProfile(row, parseMetadata(row.metadata));
@@ -32,10 +37,6 @@ export class WorkspaceService {
 
     const row = await this.requireWorkspace(context.organizationId);
     const metadata: WorkspaceMetadata = parseMetadata(row.metadata);
-
-    if (input.name !== undefined) {
-      await this.repository.updateName(row.id, input.name);
-    }
 
     if (input.defaultEnvironmentKey !== undefined) {
       if (input.defaultEnvironmentKey === null) {
@@ -60,7 +61,11 @@ export class WorkspaceService {
       metadata.timezone = input.timezone;
     }
 
-    await this.repository.updateMetadata(row.id, JSON.stringify(metadata));
+    await this.repository.updateProfile(
+      row.id,
+      JSON.stringify(metadata),
+      input.name,
+    );
 
     const updated = await this.requireWorkspace(context.organizationId);
 
@@ -81,6 +86,25 @@ export class WorkspaceService {
   ): Promise<WorkspaceSecuritySettings> {
     this.assertCanManage(context);
 
+    if (
+      input.ssoConnected ||
+      input.ssoProvider !== null ||
+      input.ipAllowlistConfigured ||
+      input.allowedEmailDomains.length > 0 ||
+      input.auditRetentionDays !== 90
+    ) {
+      throw ApiError.badRequest(
+        "Only two-factor enforcement and session duration are currently configurable.",
+      );
+    }
+
+    if (
+      input.twoFactorEnabled &&
+      !(await this.repository.hasTwoFactor(context.userId))
+    )
+      throw ApiError.badRequest(
+        "Enroll in two-factor authentication before requiring it for your workspace.",
+      );
     const row = await this.requireWorkspace(context.organizationId);
     const metadata = parseMetadata(row.metadata);
     const security = { ...toSecuritySettings(metadata), ...input };

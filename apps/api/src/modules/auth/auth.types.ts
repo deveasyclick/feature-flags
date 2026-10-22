@@ -1,4 +1,12 @@
 import type { Auth } from "./auth.config.js";
+import type { MiddlewareHandler } from "hono";
+import type { AuthController } from "./auth.controller.js";
+
+export interface AuthRoutesDeps {
+  controller: AuthController;
+  sessionMiddleware: MiddlewareHandler;
+  authHandler: AuthHandler;
+}
 
 export interface RequestUser {
   id: string;
@@ -6,6 +14,7 @@ export interface RequestUser {
   email: string;
   image?: string | null;
   emailVerified: boolean;
+  twoFactorEnabled?: boolean;
 }
 
 export interface WorkspaceMembership {
@@ -13,7 +22,16 @@ export interface WorkspaceMembership {
   name: string;
   slug: string;
   role: string;
+  sessionMaxAgeMs: number;
+  requireTwoFactor?: boolean;
 }
+
+export const SESSION_MAX_AGES = {
+  "1h": 3_600_000,
+  "12h": 43_200_000,
+  "24h": 86_400_000,
+  "7d": 604_800_000,
+} as const;
 
 export interface RequestContext {
   user: RequestUser;
@@ -23,6 +41,8 @@ export interface RequestContext {
   };
   workspace: WorkspaceMembership | null;
   hasProject: boolean;
+  mfaRequired?: boolean;
+  mfaEnrollmentRequired?: boolean;
 }
 
 export type SessionEnv = {

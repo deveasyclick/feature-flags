@@ -26,12 +26,16 @@ export function createSessionMiddleware(
 
 export async function requireSession(
   c: Context<SessionEnv>,
+  allowMfaPending = false,
 ): Promise<RequestContext> {
   const context = c.get("session");
 
   if (!context) {
     throw ApiError.unauthorized();
   }
+  if (context.mfaRequired && !allowMfaPending) throw ApiError.mfaRequired();
+  if (context.mfaEnrollmentRequired && !allowMfaPending)
+    throw ApiError.mfaEnrollmentRequired();
 
   return context;
 }

@@ -1,10 +1,34 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "../../db/client.js";
-import { environment, organization, project } from "../../db/schema/index.js";
+import {
+  environment,
+  organization,
+  project,
+  user,
+} from "../../db/schema/index.js";
 import type { EnvironmentRef, WorkspaceRow } from "./workspace.types.js";
 
 export class WorkspaceRepository {
+  async hasTwoFactor(userId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ enabled: user.twoFactorEnabled })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    return row?.enabled ?? false;
+  }
+  async updateProfile(
+    id: string,
+    metadata: string,
+    name?: string,
+  ): Promise<void> {
+    await db
+      .update(organization)
+      .set({ metadata, ...(name === undefined ? {} : { name }) })
+      .where(eq(organization.id, id));
+  }
+
   async findById(organizationId: string): Promise<WorkspaceRow | null> {
     const rows = await db
       .select({
@@ -44,7 +68,10 @@ export class WorkspaceRepository {
       .from(environment)
       .innerJoin(project, eq(project.id, environment.projectId))
       .where(
-        and(eq(project.organizationId, organizationId), eq(environment.key, key)),
+        and(
+          eq(project.organizationId, organizationId),
+          eq(environment.key, key),
+        ),
       )
       .orderBy(environment.key)
       .limit(1);

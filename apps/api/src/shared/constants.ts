@@ -4,10 +4,14 @@ export const ERROR_CODE = {
   invalidRequest: "invalid_request",
   unauthorized: "unauthorized",
   forbidden: "forbidden",
+  mfaRequired: "mfa_required",
+  mfaEnrollmentRequired: "mfa_enrollment_required",
   notFound: "not_found",
   conflict: "conflict",
   approvalRequired: "approval_required",
   internalError: "internal_error",
+  rateLimited: "rate_limited",
+  payloadTooLarge: "payload_too_large",
 } as const;
 
 export const enabledProviders = {

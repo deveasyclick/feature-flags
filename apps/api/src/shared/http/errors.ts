@@ -27,12 +27,44 @@ export class ApiError extends Error {
     return new ApiError(400, ERROR_CODE.invalidRequest, message, details);
   }
 
+  static rateLimited(): ApiError {
+    return new ApiError(
+      429,
+      ERROR_CODE.rateLimited,
+      "Too many requests. Try again shortly.",
+    );
+  }
+
+  static payloadTooLarge(): ApiError {
+    return new ApiError(
+      413,
+      ERROR_CODE.payloadTooLarge,
+      "Request body exceeds the 1 MiB limit.",
+    );
+  }
+
   static unauthorized(message = "Sign in to continue."): ApiError {
     return new ApiError(401, ERROR_CODE.unauthorized, message);
   }
 
   static forbidden(message: string): ApiError {
     return new ApiError(403, ERROR_CODE.forbidden, message);
+  }
+
+  static mfaRequired(): ApiError {
+    return new ApiError(
+      403,
+      ERROR_CODE.mfaRequired,
+      "Verify your two-factor code to continue.",
+    );
+  }
+
+  static mfaEnrollmentRequired(): ApiError {
+    return new ApiError(
+      403,
+      ERROR_CODE.mfaEnrollmentRequired,
+      "Your workspace requires two-factor authentication. Enroll to continue.",
+    );
   }
 
   static notFound(message: string): ApiError {
