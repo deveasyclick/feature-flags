@@ -24,6 +24,7 @@ export const project = pgTable(
     color: text("color"),
     ownerTeam: text("owner_team"),
     defaultEnvironmentId: text("default_environment_id"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

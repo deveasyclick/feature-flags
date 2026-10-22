@@ -18,6 +18,9 @@ export const session = pgTable(
     userAgent: text("user_agent"),
     /** The workspace the session is currently scoped to, once one exists. */
     activeOrganizationId: text("active_organization_id"),
+    twoFactorVerifiedAt: timestamp("two_factor_verified_at", {
+      withTimezone: true,
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

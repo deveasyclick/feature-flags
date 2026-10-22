@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792575754565,
+      "tag": "0000_medical_spencer_smythe",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792582858072,
+      "tag": "0001_third_mattie_franklin",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792583093903,
+      "tag": "0002_fast_brother_voodoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792583417690,
+      "tag": "0003_broken_eternals",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792583895891,
+      "tag": "0004_kind_phil_sheldon",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792594039661,
+      "tag": "0005_right_madame_hydra",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792602471879,
+      "tag": "0006_messy_star_brand",
+      "breakpoints": true
+    }
+  ]
+}

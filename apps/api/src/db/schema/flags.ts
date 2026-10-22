@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   pgTable,
   text,
@@ -24,6 +25,7 @@ export const flag = pgTable(
     tags: text("tags").array().notNull().default([]),
     owner: text("owner"),
     status: text("status").notNull().default("active"),
+    clientVisible: boolean("client_visible").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
