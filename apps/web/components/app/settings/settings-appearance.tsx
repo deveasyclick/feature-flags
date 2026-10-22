@@ -16,9 +16,9 @@ export function SettingsAppearance() {
         />
         <span
           className="text-muted-foreground shrink-0 text-[11px]"
-          title="The API does not expose a workspace-level theme."
+          
         >
-          Not available — the API does not expose a workspace theme.
+          Workspace-wide themes are not available yet. Set your personal theme in Profile.
         </span>
       </div>
     </SettingsCard>

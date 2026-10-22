@@ -128,9 +128,11 @@ export const getScope = cache(async (): Promise<DashboardScope> => {
   }
 
   const environments = await listEnvironments(project.key);
+  const preferences = await api.me.getPreferences();
   const selectedEnvironmentKey = await readCookie(ENVIRONMENT_COOKIE);
   const environment =
     environments.find((item) => item.key === selectedEnvironmentKey) ??
+    environments.find((item) => item.id === preferences.defaultEnvironmentId) ??
     environments.find((item) => item.id === project.defaultEnvironmentId) ??
     environments.find((item) => item.isDefault) ??
     environments[0] ??

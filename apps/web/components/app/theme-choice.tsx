@@ -4,29 +4,22 @@ import {
   type WorkspaceTheme,
 } from "@/components/app/settings/settings-options";
 
-/**
- * The Light / Dark / System control.
- *
- * Presentational and disabled: the design tokens already ship dark values, but
- * nothing switches them yet and a stored preference would have to come from the
- * API. It is marked as coming soon rather than pretending to apply, and shared
- * by the workspace Appearance card and the personal Preferences card so the two
- * cannot drift.
- */
-export function ThemeChoice({ theme }: { readonly theme: WorkspaceTheme }) {
+export function ThemeChoice({ theme, onChange, disabled }: { readonly theme: WorkspaceTheme; readonly onChange?: (theme: WorkspaceTheme) => void; readonly disabled?: boolean }) {
   return (
     <div
       role="radiogroup"
       aria-label="Theme"
-      aria-disabled="true"
-      title="Theme — coming soon"
+      aria-disabled={disabled || !onChange}
       className="bg-muted inline-flex shrink-0 items-center gap-1 rounded-lg p-1"
     >
       {themeOptions.map((option) => {
         const active = option.value === theme;
 
         return (
-          <span
+          <button
+            type="button"
+            disabled={disabled || !onChange}
+            onClick={() => onChange?.(option.value)}
             key={option.value}
             role="radio"
             aria-checked={active}
@@ -38,7 +31,7 @@ export function ThemeChoice({ theme }: { readonly theme: WorkspaceTheme }) {
             )}
           >
             {option.label}
-          </span>
+          </button>
         );
       })}
     </div>

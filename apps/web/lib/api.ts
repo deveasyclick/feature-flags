@@ -28,6 +28,15 @@ import type {
   FlagSummary,
   FlagVariation,
   FlagVersion,
+  FlagVersionDetail,
+  ScheduledFlagChange,
+  ScheduleFlagChangeInput,
+  ClientFlagVisibility,
+  AnalyticsSummary,
+  AnalyticsQuery,
+  NotificationPage,
+  ArmFlagRollbackInput,
+  FlagRollbackPolicy,
   PaginationQuery,
   Project,
   ProjectMember,
@@ -283,11 +292,16 @@ export async function request<T>(
 }
 
 export const projects = {
-  list: (query: { search?: string } = {}, options?: RequestOptions) =>
+  list: (query: { search?: string; includeArchived?: boolean } = {}, options?: RequestOptions) =>
     request<Project[]>("GET", "/v1/projects", { ...options, query }),
 
   get: (projectKey: string, options?: RequestOptions) =>
     request<Project>("GET", `/v1/projects/${projectKey}`, options),
+
+  archive: (key: string) => request<void>("POST", `/v1/projects/${key}/archive`),
+  restore: (key: string) => request<Project>("POST", `/v1/projects/${key}/restore`),
+  duplicate: (key: string, name: string) => request<{ id: string; key: string; name: string }>("POST", `/v1/projects/${key}/duplicate`, { body: { name } }),
+  transfer: (key: string, destinationWorkspaceSlug: string) => request<{ id: string; key: string; name: string }>("POST", `/v1/projects/${key}/transfer`, { body: { destinationWorkspaceSlug } }),
 
   create: (input: { name: string }, options?: RequestOptions) =>
     request<Project>("POST", "/v1/projects", { ...options, body: input }),
@@ -378,6 +392,15 @@ export const environments = {
       `/v1/projects/${projectKey}/environments/${environmentKey}/settings`,
       { ...options, body: input },
     ),
+};
+
+export const analytics = {
+  summary: (query: Partial<AnalyticsQuery> = {}) => request<AnalyticsSummary>("GET", "/v1/analytics", { query }),
+};
+
+export const notifications = {
+  list: (query: Partial<PaginationQuery> = {}) => request<NotificationPage>("GET", "/v1/notifications", { query }),
+  markRead: (id: string) => request<void>("POST", `/v1/notifications/${id}/read`),
 };
 
 export const changeRequests = {
@@ -703,6 +726,34 @@ export const flags = {
       `${flagConfigPath(projectKey, flagKey, environmentKey)}/versions`,
       { ...options, query },
     ),
+
+  version: (projectKey: string, flagKey: string, environmentKey: string, version: number) =>
+    request<FlagVersionDetail>("GET", `${flagConfigPath(projectKey, flagKey, environmentKey)}/versions/${version}`),
+
+  restoreVersion: (projectKey: string, flagKey: string, environmentKey: string, version: number) =>
+    request<void>("POST", `${flagConfigPath(projectKey, flagKey, environmentKey)}/versions/${version}/restore`),
+
+  clientVisibility: (projectKey: string, flagKey: string) =>
+    request<ClientFlagVisibility>("GET", `${flagPath(projectKey, flagKey)}/client-visibility`),
+
+  setClientVisibility: (projectKey: string, flagKey: string, clientVisible: boolean) =>
+    request<ClientFlagVisibility>("PATCH", `${flagPath(projectKey, flagKey)}/client-visibility`, { body: { clientVisible } }),
+
+  schedules: (projectKey: string, flagKey: string, environmentKey: string, query: Partial<PaginationQuery> = {}) =>
+    request<ApiPage<ScheduledFlagChange>>("GET", `${flagConfigPath(projectKey, flagKey, environmentKey)}/schedules`, { query }),
+
+  schedule: (projectKey: string, flagKey: string, environmentKey: string, input: ScheduleFlagChangeInput) =>
+    request<ScheduledFlagChange>("POST", `${flagConfigPath(projectKey, flagKey, environmentKey)}/schedules`, { body: input }),
+
+  cancelSchedule: (projectKey: string, flagKey: string, environmentKey: string, id: string) =>
+    request<void>("DELETE", `${flagConfigPath(projectKey, flagKey, environmentKey)}/schedules/${id}`),
+
+  rollbackPolicies: (projectKey: string, flagKey: string, environmentKey: string, query: Partial<PaginationQuery> = {}) =>
+    request<ApiPage<FlagRollbackPolicy>>("GET", `${flagConfigPath(projectKey, flagKey, environmentKey)}/rollback-policies`, { query }),
+  armRollback: (projectKey: string, flagKey: string, environmentKey: string, input: ArmFlagRollbackInput) =>
+    request<FlagRollbackPolicy>("POST", `${flagConfigPath(projectKey, flagKey, environmentKey)}/rollback-policies`, { body: input }),
+  cancelRollback: (projectKey: string, flagKey: string, environmentKey: string, id: string) =>
+    request<void>("DELETE", `${flagConfigPath(projectKey, flagKey, environmentKey)}/rollback-policies/${id}`),
 };
 
 export const segments = {
@@ -880,6 +931,8 @@ export const members = {
 };
 
 export const me = {
+  getPreferences: (options?: RequestOptions) =>
+    request<UserPreferences>("GET", "/v1/me/preferences", options),
   updateProfile: (input: UpdateProfileInput, options?: RequestOptions) =>
     request<SessionUser>("PATCH", "/v1/me", { ...options, body: input }),
 

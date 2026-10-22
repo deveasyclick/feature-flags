@@ -1,50 +1,27 @@
-import { BellIcon, SearchIcon } from "lucide-react";
+import { GlobalSearch } from "./global-search";
+import { NotificationsMenu } from "./notifications-menu";
 import { AccountMenu } from "@/components/app/account-menu";
 import { MobileNav } from "@/components/app/app-sidebar";
-import { Input } from "@/components/ui/input";
 import type { ChromeUser } from "@/lib/scope";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 
 interface TopbarProps {
+  readonly projectKey: string;
+  readonly environmentKey?: string;
   readonly user: ChromeUser;
+  readonly workspaceId?: string;
 }
 
-/**
- * Application topbar. Kept a Server Component: the only interactive parts are
- * the mobile drawer and the avatar, which are imported client components.
- *
- * The project and environment live in the sidebar's switcher, so the topbar no
- * longer repeats them. Search and notifications are presentational for now and
- * are marked as such rather than pretending to work.
- */
-export function Topbar({ user }: TopbarProps) {
+export function Topbar({ user, workspaceId, projectKey, environmentKey }: TopbarProps) {
   return (
     <header className="bg-card flex h-12 shrink-0 items-center gap-3 border-b px-3">
       <MobileNav />
 
-      <div className="relative w-full max-w-xs">
-        <SearchIcon
-          aria-hidden="true"
-          className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-        />
-        <Input
-          type="search"
-          disabled
-          aria-label="Search flags, segments and keys"
-          placeholder="Search flags, segments, keys…"
-          className="h-8 pl-8 text-[13px]"
-        />
-        <kbd className="border-border text-muted-foreground pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border px-1.5 py-px text-[10px]">
-          ⌘K
-        </kbd>
-      </div>
+      <GlobalSearch key={`${projectKey}:${environmentKey}`} projectKey={projectKey} environmentKey={environmentKey} />
 
       <div className="ml-auto flex items-center gap-2">
-        <span
-          title="Notifications — coming soon"
-          className="text-muted-foreground hidden size-8 items-center justify-center sm:inline-flex"
-        >
-          <BellIcon aria-hidden="true" className="size-4" />
-        </span>
+        {workspaceId && <WorkspaceSwitcher workspaceId={workspaceId} />}
+        <NotificationsMenu key={workspaceId} />
 
         <span
           aria-hidden="true"
