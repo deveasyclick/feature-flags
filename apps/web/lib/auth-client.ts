@@ -1,6 +1,6 @@
 "use client";
 
-import { emailOTPClient, organizationClient } from "better-auth/client/plugins";
+import { emailOTPClient, organizationClient, twoFactorClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
 import env from "shared/env";
@@ -20,7 +20,7 @@ export const authClient = createAuthClient({
    * `emailOtp.sendVerificationOtp` and `emailOtp.verifyEmail`, which replace the
    * emailed link with a code the user types on this site.
    */
-  plugins: [organizationClient(), emailOTPClient()],
+  plugins: [organizationClient(), emailOTPClient(), twoFactorClient()],
 });
 
 export const { signIn, signUp, signOut, useSession } = authClient;

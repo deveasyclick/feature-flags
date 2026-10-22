@@ -147,18 +147,19 @@ export interface SignInInput {
 export async function signIn(
   input: SignInInput,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<boolean> {
   const errors = validate(signInSchema, input);
   if (errors) throw new AuthError(errors);
   if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-  const { error } = await authClient.signIn.email({
+  const { error, data } = await authClient.signIn.email({
     email: input.email,
     password: input.password,
     rememberMe: input.remember,
   });
 
   if (error) throw fromAuthError(error);
+  return !!(data && "twoFactorRedirect" in data && data.twoFactorRedirect);
 }
 
 /* -------------------------------------------------------------------------- */

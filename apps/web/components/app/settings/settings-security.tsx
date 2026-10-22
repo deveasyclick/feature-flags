@@ -149,10 +149,10 @@ export function SettingsSecurity({
           <li className="flex flex-wrap items-center justify-between gap-3 py-3">
             <SettingsRowLabel
               label="Two-factor authentication"
-              description="Require 2FA for every workspace member."
+                description="Require every member to enroll before accessing workspace data. Enroll your own account first."
             />
             <Switch
-              checked={current.twoFactorEnabled}
+                checked={current.twoFactorEnabled}
               onCheckedChange={(value) => apply({ twoFactorEnabled: value })}
               aria-label="Require two-factor authentication"
               className="shrink-0"
@@ -161,8 +161,8 @@ export function SettingsSecurity({
 
           <li className="flex flex-wrap items-center justify-between gap-3 pt-3">
             <SettingsRowLabel
-              label="Session timeout"
-              description="Sign members out after a period of inactivity."
+              label="Maximum session age"
+              description="Expire sessions after this duration from sign-in."
             />
             <Select
               value={current.sessionTimeout}
@@ -174,7 +174,7 @@ export function SettingsSecurity({
               }
             >
               <SelectTrigger
-                aria-label="Session timeout"
+                aria-label="Maximum session age"
                 className="h-8 w-28 shrink-0 text-[11px]"
               >
                 <SelectValue />
@@ -250,9 +250,10 @@ export function SettingsSecurity({
           <li className="flex flex-wrap items-center justify-between gap-3 pt-3">
             <SettingsRowLabel
               label="Audit log retention"
-              description="How long activity history is kept and exportable."
+              description="Audit records expire after 90 days. Other retention periods are not available yet."
             />
             <Select
+              disabled
               value={String(current.auditRetentionDays)}
               onValueChange={(value) =>
                 apply({ auditRetentionDays: Number(value) })

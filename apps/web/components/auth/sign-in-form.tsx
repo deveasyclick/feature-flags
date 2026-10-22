@@ -170,7 +170,8 @@ export function SignInForm({
       const address = email.trim();
 
       try {
-        await signIn({ email: address, password, remember }, signal);
+        const needsFactor = await signIn({ email: address, password, remember }, signal);
+        if (needsFactor) { router.push("/two-factor"); return; }
       } catch (error) {
         if (
           error instanceof AuthError &&
