@@ -17,7 +17,7 @@ export function SettingsDanger() {
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
         <p className="text-muted-foreground text-[11px]">
-          Permanently removes all flags, environments, and audit history.
+          Workspace deletion is not available yet.
         </p>
         <Button
           variant="outline"

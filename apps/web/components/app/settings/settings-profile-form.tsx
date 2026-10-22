@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { CheckIcon, LoaderCircleIcon } from "lucide-react";
 import {
@@ -71,6 +72,7 @@ export function SettingsProfileForm({
   readonly profile: WorkspaceProfile;
   readonly environments: EnvironmentSummary[];
 }) {
+  const router = useRouter();
   const [draft, setDraft] = useState<ProfileDraft>(() =>
     toDraft(profile, environments),
   );
@@ -136,6 +138,7 @@ export function SettingsProfileForm({
       setBaseline(next);
       setDefaultEnvironmentId(updated.defaultEnvironmentId);
       setSaved(true);
+      router.refresh();
     } catch (caught) {
       if ((caught as Error)?.name === "AbortError") return;
 

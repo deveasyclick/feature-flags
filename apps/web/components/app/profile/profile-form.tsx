@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CameraIcon, CheckIcon, LoaderCircleIcon } from "lucide-react";
 import {
   toFieldErrors,
@@ -33,6 +34,7 @@ export function ProfileForm({
   readonly initials: string;
 }) {
   const initial: ProfileDraft = { name: user.name, email: user.email };
+  const router = useRouter();
 
   const [draft, setDraft] = useState<ProfileDraft>(initial);
   const [baseline, setBaseline] = useState<ProfileDraft>(initial);
@@ -98,6 +100,7 @@ export function ProfileForm({
       setDraft(accepted);
       setBaseline(accepted);
       setSaved(true);
+      router.refresh();
     } catch (caught) {
       if ((caught as Error)?.name === "AbortError") return;
 

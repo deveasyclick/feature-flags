@@ -9,6 +9,7 @@ import {
   ProfilePreferences,
 } from "@/components/app/profile/profile-preferences";
 import { getScope, initialsOf } from "@/lib/scope";
+import { me } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -23,7 +24,7 @@ export default async function ProfilePage() {
 
   if (!session) redirect("/sign-in");
 
-  const { environments, environment } = await getScope();
+  const [{ environments }, preferences] = await Promise.all([getScope(), me.getPreferences()]);
 
   return (
     <>
@@ -48,9 +49,9 @@ export default async function ProfilePage() {
           />
           <ProfilePreferences
             environments={environments}
-            defaultEnvironmentKey={environment?.key ?? null}
+            preferences={preferences}
           />
-          <ProfileNotifications />
+          <ProfileNotifications preferences={preferences} />
         </div>
       </div>
     </>

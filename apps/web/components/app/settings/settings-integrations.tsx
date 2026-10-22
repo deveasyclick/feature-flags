@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   ActivityIcon,
   InfoIcon,
@@ -87,16 +88,14 @@ export function SettingsIntegrations({ apps }: { readonly apps: IntegrationApp[]
           <InfoIcon aria-hidden="true" className="size-3.5" />
         </span>
         <p className="text-muted-foreground text-[11px]">
-          Looking for SDKs or webhooks? They live in the Developer section of the
-          sidebar.
+          Connect your application with the Node SDK. Webhooks are not available yet.
         </p>
-        <span
-          aria-disabled="true"
-          title="SDKs and webhooks — coming soon"
+        <Link
+          href="/sdks"
           className="text-primary ml-auto text-[11px]"
         >
           Open SDKs &amp; Integration →
-        </span>
+        </Link>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import {
   type EnvironmentSummary,
   type Theme,
   type UpdateNotificationsInput,
+  type UserPreferences,
 } from "@iwifunni/contracts";
 import { SettingsCard, SettingsRowLabel } from "@/components/app/settings-card";
 import { ThemeChoice } from "@/components/app/theme-choice";
@@ -23,16 +24,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import * as api from "@/lib/api";
+import { useTheme } from "@/components/app/personal-theme";
 
 const SAVED_HINT_MS = 2_000;
-
-const DEFAULT_THEME: Theme = "system";
-
-const DEFAULT_NOTIFICATIONS: UpdateNotificationsInput = {
-  flagChanges: true,
-  weeklyDigest: false,
-  incidentAlerts: true,
-};
 
 const notificationRows: Array<{
   key: keyof UpdateNotificationsInput;
@@ -42,17 +36,17 @@ const notificationRows: Array<{
   {
     key: "flagChanges",
     label: "Flag changes",
-    description: "Email me when a flag I own is updated.",
+    description: "Approval decisions and project lifecycle updates in the inbox.",
   },
   {
     key: "weeklyDigest",
     label: "Weekly digest",
-    description: "Summary of rollout activity every Monday.",
+    description: "Email digests are not available yet.",
   },
   {
     key: "incidentAlerts",
     label: "Incident alerts",
-    description: "Real-time alerts for evaluation errors.",
+    description: "Failed schedules and automatic rollbacks in the inbox.",
   },
 ];
 
@@ -105,15 +99,17 @@ function SavedHint({ saved }: { readonly saved: boolean }) {
 
 export function ProfilePreferences({
   environments,
-  defaultEnvironmentKey,
+  preferences,
 }: {
   readonly environments: EnvironmentSummary[];
-  readonly defaultEnvironmentKey: string | null;
+  readonly preferences: UserPreferences;
 }) {
   const [current, setCurrent] = useState<{
     theme: Theme;
     defaultEnvironmentKey: string | null;
-  }>({ theme: DEFAULT_THEME, defaultEnvironmentKey });
+  }>({ theme: preferences.theme, defaultEnvironmentKey: environmentKeyOf(preferences.defaultEnvironmentId, environments) });
+  const { setTheme } = useTheme();
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { saved, acknowledge, reset } = useSavedHint();
   const controllerRef = useRef<AbortController | null>(null);
@@ -121,6 +117,7 @@ export function ProfilePreferences({
   async function apply(
     patch: Partial<{ theme: Theme; defaultEnvironmentKey: string | null }>,
   ) {
+    if (pending) return;
     const previous = current;
     const next = { ...current, ...patch };
 
@@ -146,6 +143,7 @@ export function ProfilePreferences({
     controllerRef.current = controller;
 
     try {
+      setPending(true);
       const updated = await api.me.updatePreferences(parsed.data, {
         signal: controller.signal,
       });
@@ -157,6 +155,7 @@ export function ProfilePreferences({
           environments,
         ),
       });
+      setTheme(updated.theme);
       acknowledge();
     } catch (caught) {
       if ((caught as Error)?.name === "AbortError") return;
@@ -167,28 +166,25 @@ export function ProfilePreferences({
           ? caught.message
           : "That preference could not be saved. Please try again.",
       );
-    }
+    } finally { setPending(false); }
   }
 
   return (
     <SettingsCard title="Preferences" action={<SavedHint saved={saved} />}>
-      <p className="text-muted-foreground text-[11px]">
-        Stored preferences cannot be read back yet, so these controls start from
-        defaults.
-      </p>
+
 
       <div className="mt-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[12px] font-medium">Theme</p>
-          <ThemeChoice theme={current.theme} />
+          <ThemeChoice theme={current.theme} disabled={pending} onChange={(theme) => apply({ theme })} />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="profile-environment">Default environment</Label>
           <Select
-            value={current.defaultEnvironmentKey ?? ""}
-            onValueChange={(value) => apply({ defaultEnvironmentKey: value })}
-            disabled={environments.length === 0}
+            value={current.defaultEnvironmentKey ?? "project-default"}
+            onValueChange={(value) => apply({ defaultEnvironmentKey: value === "project-default" ? null : value })}
+            disabled={pending || environments.length === 0}
           >
             <SelectTrigger
               id="profile-environment"
@@ -197,6 +193,7 @@ export function ProfilePreferences({
               <SelectValue placeholder="No default environment" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="project-default">Use project default</SelectItem>
               {environments.map((environment) => (
                 <SelectItem key={environment.id} value={environment.key}>
                   {environment.name}
@@ -212,14 +209,16 @@ export function ProfilePreferences({
   );
 }
 
-export function ProfileNotifications() {
+export function ProfileNotifications({ preferences }: { readonly preferences: UserPreferences }) {
+  const [pending, setPending] = useState(false);
   const [current, setCurrent] =
-    useState<UpdateNotificationsInput>(DEFAULT_NOTIFICATIONS);
+    useState<UpdateNotificationsInput>(preferences.notifications);
   const [error, setError] = useState<string | null>(null);
   const { saved, acknowledge, reset } = useSavedHint();
   const controllerRef = useRef<AbortController | null>(null);
 
   async function apply(next: UpdateNotificationsInput) {
+    if (pending) return;
     const previous = current;
 
     setCurrent(next);
@@ -244,6 +243,7 @@ export function ProfileNotifications() {
     controllerRef.current = controller;
 
     try {
+      setPending(true);
       const updated = await api.me.updateNotifications(parsed.data, {
         signal: controller.signal,
       });
@@ -259,14 +259,15 @@ export function ProfileNotifications() {
           ? caught.message
           : "That notification choice could not be saved. Please try again.",
       );
+    } finally {
+      setPending(false);
     }
   }
 
   return (
     <SettingsCard title="Notifications" action={<SavedHint saved={saved} />}>
       <p className="text-muted-foreground text-[11px]">
-        Stored notification choices cannot be read back yet, so these switches
-        start from defaults.
+        Choose which updates appear in your notification inbox. Email delivery and weekly digests are not available yet.
       </p>
 
       <ul className="mt-3 divide-y">
@@ -277,6 +278,7 @@ export function ProfileNotifications() {
           >
             <SettingsRowLabel label={row.label} description={row.description} />
             <Switch
+              disabled={pending || row.key === "weeklyDigest"}
               checked={current[row.key]}
               onCheckedChange={(value) =>
                 apply({ ...current, [row.key]: value })
