@@ -84,6 +84,8 @@ export function CreateApiKeyForm({
   function input(): CreateApiKeyInput {
     return {
       name: name.trim(),
+      kind: "server",
+      scopes: ["flags:read", "events:write"],
       environmentKey,
       expiresInDays:
         expirations.find((option) => option.value === expiration)?.days ??

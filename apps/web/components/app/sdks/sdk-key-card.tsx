@@ -13,13 +13,6 @@ import {
 } from "@iwifunni/contracts";
 import { ApiError, apiKeys } from "@/lib/api";
 
-/**
- * Issues the runtime key this screen's snippets need.
- *
- * The key is read-only and belongs to one environment, which is why the screen
- * asks for nothing else: the environment is the one the dashboard is scoped to,
- * and the scopes are fixed. The secret appears once, here.
- */
 export function SdkKeyCard({
   projectKey,
   environmentKey,
@@ -48,6 +41,7 @@ export function SdkKeyCard({
             : `${environmentName} SDK key`,
         kind,
         environmentKey,
+        scopes: kind === "server" ? ["flags:read", "events:write"] : ["flags:read"],
       });
 
       setCreated(key);
@@ -66,9 +60,7 @@ export function SdkKeyCard({
   return (
     <SectionCard title="SDK key">
       <p className="text-muted-foreground text-[12px] leading-5">
-        A server key authenticates a server-side SDK and a browser key one that
-        ships to the client. Either way it reads {environmentName}&apos;s
-        configuration and evaluates it locally; it can change nothing.
+        Server keys download {environmentName}&apos;s configuration and can report evaluation events. Browser keys receive evaluated values for explicitly browser-visible flags through the evaluation endpoint.
       </p>
 
       {created ? (

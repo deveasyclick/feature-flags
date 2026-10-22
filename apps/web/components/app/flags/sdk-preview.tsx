@@ -88,7 +88,7 @@ export function sdkSnippet(options: {
   const getter = GETTERS[type];
 
   return [
-    'import { FeatureFlags } from "@iwifunni/node";',
+    'import { FeatureFlags } from "@iwifunni-flag/core";',
     "",
     "const client = new FeatureFlags({",
     '  sdkKey: process.env.IWIFUNNI_SDK_KEY,',

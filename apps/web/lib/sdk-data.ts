@@ -1,7 +1,7 @@
 /**
  * SDK install and usage snippets.
  *
- * These are documentation, not API data: only `@iwifunni/node` exists today, so
+ * These are documentation, not API data: only `@iwifunni-flag/core` exists today, so
  * the rest are the shape each SDK is meant to ship with and are maintained here
  * until the packages publish their own. The connection values the screen pairs
  * them with — key, endpoints — come from the API, via
@@ -48,11 +48,13 @@ const sdkOptions: SdkOption[] = [
     label: "Node.js",
     scope: "Server-side",
     steps: {
-      install: "npm install @iwifunni/node  # not on npm yet — link it from the workspace",
-      initialize: `import { FeatureFlags } from "@iwifunni/node";
+      install: "npm install @iwifunni-flag/core  # not on npm yet — link it from the workspace",
+      initialize: `import { FeatureFlags } from "@iwifunni-flag/core";
 
 const flags = new FeatureFlags({
   sdkKey: process.env.IWIFUNNI_SDK_KEY,
+  telemetry: true,
+  streaming: true,
   environment: "production",
 });
 
@@ -225,5 +227,5 @@ export const defaultSdkKey: SdkKey = "node";
 
 /** Every SDK the screen offers, in the order the picker lists them. */
 export function getSdkOptions(): SdkOption[] {
-  return sdkOptions;
+  return sdkOptions.filter((sdk) => sdk.key === "node");
 }

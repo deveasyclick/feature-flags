@@ -12,13 +12,13 @@ import { defaultSdkKey, getSdkOptions, type SdkKey } from "@/lib/sdk-data";
 
 /** Connection values the screen quotes, resolved from the environment. */
 export interface SdkConnection {
+  readonly environmentKey: string;
   /** Environment the values belong to, e.g. `Production`. */
   environmentName: string;
   /** The API returns `null` until an SDK key has been issued. */
   maskedKey: string | null;
   /** The endpoint an SDK fetches its snapshot from, e.g. `…/v1/sdk/config`. */
   endpoint: string;
-  /** `null` until flag streaming exists; the row says so rather than lying. */
   streamEndpoint: string | null;
 }
 
@@ -33,7 +33,7 @@ export function SdkIntegration({
 
   const steps: Array<{ title: string; code: string }> = [
     { title: "Install", code: sdk.steps.install },
-    { title: "Initialize", code: sdk.steps.initialize },
+    { title: "Initialize", code: sdk.steps.initialize.replace('  sdkKey: process.env.IWIFUNNI_SDK_KEY,', `  sdkKey: process.env.IWIFUNNI_SDK_KEY,\n  baseUrl: ${JSON.stringify(connection.endpoint.replace(/\/v1\/sdk\/config$/, ""))},`).replace('environment: "production"', `environment: ${JSON.stringify(connection.environmentKey)}`) },
     { title: "Evaluate a flag", code: sdk.steps.evaluate },
   ];
 
@@ -56,6 +56,7 @@ export function SdkIntegration({
     <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.45fr)]">
       <div className="space-y-3">
         <SectionCard title="Choose your SDK">
+          <p className="mb-3 text-xs text-muted-foreground">Node.js is available from this workspace. Additional SDKs are not released yet.</p>
           <RadioGroup
             value={selected}
             onValueChange={(value) => setSelected(value as SdkKey)}

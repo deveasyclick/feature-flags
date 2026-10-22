@@ -10,11 +10,12 @@ import { Button } from "@/components/ui/button";
 import * as api from "@/lib/api";
 import { resolveEnvironmentColor } from "@/lib/environment-color";
 import { getScope } from "@/lib/scope";
+import env from "shared/env";
 
 export const metadata: Metadata = {
   title: "SDKs & Integration",
   description:
-    "Install a client SDK, then evaluate this project's flags with sub-10ms latency.",
+    "Connect the Node.js SDK and evaluate flags locally in your application.",
 };
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export default async function SdksPage() {
       <>
         <PageHeader
           title="SDKs & Integration"
-          description="Install a client SDK, then evaluate this project's flags with sub-10ms latency."
+          description="Connect the Node.js SDK and evaluate flags locally in your application."
         />
         <div className="bg-card rounded-lg border p-6">
           <p className="text-[13px] font-medium">No environment yet</p>
@@ -54,7 +55,7 @@ export default async function SdksPage() {
     <>
       <PageHeader
         title="SDKs & Integration"
-        description="Install a client SDK, then evaluate this project's flags with sub-10ms latency."
+        description="Connect the Node.js SDK and evaluate flags locally in your application."
       >
         <span className="bg-card inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px]">
           <span
@@ -83,10 +84,11 @@ export default async function SdksPage() {
 
       <SdkIntegration
         connection={{
+          environmentKey: environment.key,
           environmentName: environment.name,
           maskedKey: connection.maskedKey,
-          endpoint: `${connection.baseUrl}/v1/sdk/config`,
-          streamEndpoint: connection.streamUrl,
+          endpoint: `${env.apiUrl}/v1/sdk/config`,
+          streamEndpoint: `${env.apiUrl}/v1/sdk/stream`,
         }}
       />
     </>
