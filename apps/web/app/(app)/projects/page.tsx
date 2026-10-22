@@ -11,6 +11,7 @@ import { cappedCount } from "@/components/app/environments/capped-count";
 import { listWorkspaceFlags } from "@/components/app/flags/flag-queries";
 import { Button } from "@/components/ui/button";
 import * as api from "@/lib/api";
+import { ArchivedProjects } from "@/components/app/projects/archived-projects";
 
 export const metadata: Metadata = {
   title: "Projects",
@@ -63,6 +64,7 @@ export default async function ProjectsPage() {
       </PageHeader>
 
       <ProjectGrid projects={rows} />
+      <ArchivedProjects />
 
       <div className="mt-3">
         <ProjectsOverviewCard projects={rows} now={now} />

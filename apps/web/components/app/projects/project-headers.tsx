@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ChevronLeftIcon, PencilIcon } from "lucide-react";
+import { ChevronLeftIcon } from "lucide-react";
 import { cn } from "cn";
 import type { Project } from "@iwifunni/contracts";
 import { environmentColorTone } from "@/components/app/environments/environment-colors";
 import { projectGlyphs } from "@/components/app/projects/project-glyphs";
 import { ProjectMenu } from "@/components/app/projects/project-menu";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { EditResourceDialog } from "@/components/app/edit-resource-dialog";
 import { resolveEnvironmentColor } from "@/lib/environment-color";
 
 /**
@@ -56,16 +56,7 @@ export function ProjectHeader({ project }: { readonly project: Project }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Edit project — coming soon"
-            className="gap-1.5 text-[11px]"
-          >
-            <PencilIcon aria-hidden="true" className="size-3.5" />
-            Edit project
-          </Button>
+          <EditResourceDialog kind="project" projectKey={project.key} resourceKey={project.key} name={project.name} description={project.description} />
 
           <ProjectMenu name={project.name} />
         </div>

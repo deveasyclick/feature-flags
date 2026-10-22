@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
-  ArchiveProjectCard,
   DefaultEnvironmentCard,
   ProjectEnvironmentsCard,
   ProjectFlagsCard,
@@ -15,6 +14,7 @@ import {
 import { listProjectFlags } from "@/components/app/flags/flag-queries";
 import * as api from "@/lib/api";
 import { loadProject } from "./load-project";
+import { ProjectLifecycle } from "@/components/app/projects/project-lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +38,7 @@ export default async function ProjectEnvironmentsPage(
   const project = await loadProject(key);
 
   if (!project) notFound();
+  if (project.archivedAt) return <ProjectLifecycle projectKey={project.key} name={project.name} archived />;
 
   const [environmentPage, apiKeyPage, segmentPage, flags] = await Promise.all([
     api.environments.list(project.key),
@@ -98,7 +99,7 @@ export default async function ProjectEnvironmentsPage(
           enabledByEnvironment={enabledByEnvironment}
           defaultEnvironmentKey={defaultEnvironmentKey}
         />
-        <ArchiveProjectCard />
+        <ProjectLifecycle projectKey={project.key} name={project.name} />
       </div>
     </div>
   );
