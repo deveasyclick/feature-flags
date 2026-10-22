@@ -23,3 +23,14 @@ allowBuilds:
   # tool can start.
   esbuild: true
   '@sentry/node-cpu-profiler': true
+
+overrides:
+  "next@16.3.5": "16.3.8"
+  "next@16.3.6": "16.3.8"
+  "brace-expansion@5.0.9": "5.0.12"
+  "source-map-js@1.2.1": "1.2.2"
+  "sharp@0.35.4": "0.35.5"
+  "vite@8.3.0": "8.3.3"
+
+  "hono@4.13.8": "4.13.11"
+  "esbuild@0.18.20": "0.25.12"
